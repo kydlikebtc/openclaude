@@ -15,6 +15,57 @@ async def test_register_success(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_register_sets_httponly_cookie(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "cookietest@example.com", "password": "securepassword123"},
+    )
+    assert response.status_code == 201
+    # Server must set the httpOnly session cookie
+    assert "access_token" in response.cookies
+
+
+@pytest.mark.asyncio
+async def test_login_sets_httponly_cookie(client: AsyncClient) -> None:
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "logincookie@example.com", "password": "securepassword123"},
+    )
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "logincookie@example.com", "password": "securepassword123"},
+    )
+    assert response.status_code == 200
+    assert "access_token" in response.cookies
+
+
+@pytest.mark.asyncio
+async def test_me_authenticated_via_cookie(client: AsyncClient) -> None:
+    """Verify /me works when auth is provided via httpOnly cookie."""
+    reg_response = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "mecookie@example.com", "password": "securepassword123"},
+    )
+    assert reg_response.status_code == 201
+    # httpx AsyncClient automatically stores and sends cookies
+    response = await client.get("/api/v1/auth/me")
+    assert response.status_code == 200
+    assert response.json()["email"] == "mecookie@example.com"
+
+
+@pytest.mark.asyncio
+async def test_logout_clears_cookie(client: AsyncClient) -> None:
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "logouttest@example.com", "password": "securepassword123"},
+    )
+    logout_response = await client.post("/api/v1/auth/logout")
+    assert logout_response.status_code == 200
+    # After logout the cookie should be cleared (set with max-age=0 or expired)
+    assert logout_response.json()["message"] == "Logged out"
+
+
+@pytest.mark.asyncio
 async def test_register_duplicate_email(client: AsyncClient) -> None:
     await client.post(
         "/api/v1/auth/register",

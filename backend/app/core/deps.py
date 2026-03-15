@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 import structlog
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Cookie, Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.database import AsyncSession, get_db
@@ -22,14 +22,17 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 async def get_current_user(
     db: DbDep,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+    access_token: Annotated[str | None, Cookie()] = None,
 ) -> User:
-    if not credentials:
+    # Prefer explicit Bearer header (API clients); fall back to httpOnly cookie (browsers)
+    token = (credentials.credentials if credentials else None) or access_token
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user_id = decode_access_token(credentials.credentials)
+    user_id = decode_access_token(token)
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

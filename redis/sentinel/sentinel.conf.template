@@ -1,0 +1,21 @@
+# Redis Sentinel 配置模板
+# 运行时由 entrypoint 脚本将 ${REDIS_PASSWORD} 替换为实际密码
+
+sentinel resolve-hostnames yes
+sentinel announce-hostnames yes
+
+# 监控主节点：quorum=2 表示至少 2 个 sentinel 认为主节点下线才触发故障转移
+sentinel monitor mymaster redis-master 6379 2
+sentinel auth-pass mymaster ${REDIS_PASSWORD}
+
+# 主节点超过 30 秒无响应视为下线
+sentinel down-after-milliseconds mymaster 30000
+
+# 故障转移时最多同时同步 1 个 replica（减少主节点压力）
+sentinel parallel-syncs mymaster 1
+
+# 故障转移超时 3 分钟
+sentinel failover-timeout mymaster 180000
+
+# Sentinel 自身的认证密码
+requirepass ${REDIS_PASSWORD}

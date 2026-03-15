@@ -18,8 +18,14 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://openclaude:openclaude@localhost:5432/openclaude"
 
-    # Redis
+    # Redis (单实例模式)
     redis_url: str = "redis://localhost:6379/0"
+
+    # Redis Sentinel HA 模式（优先于 redis_url）
+    # 格式: "host1:26379,host2:26379,host3:26379"
+    redis_sentinel_hosts: str = ""
+    redis_sentinel_master_name: str = "mymaster"
+    redis_sentinel_password: str = ""
 
     # JWT
     secret_key: str = _INSECURE_SECRET_KEY
@@ -29,6 +35,10 @@ class Settings(BaseSettings):
     # Redis API key encryption (AES-256-GCM) — must be a 32-byte hex string (64 hex chars)
     # Generate with: openssl rand -hex 32
     redis_encryption_key: str = _INSECURE_ENCRYPTION_KEY
+
+    # Cookie authentication
+    cookie_secure: bool = False  # Set True in production (requires HTTPS)
+    cookie_samesite: str = "lax"  # "strict" in production; "lax" for local dev CORS
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]

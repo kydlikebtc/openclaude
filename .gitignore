@@ -1,14 +1,28 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.Python
-.DS_Store
+.venv/
+venv/
 *.egg-info/
 dist/
 build/
+.coverage
+coverage.xml
+.pytest_cache/
+htmlcov/
+
+# Env
 .env
-.venv
-venv/
-*.key
-miner.yaml
+!.env.example
+
+# macOS
+.DS_Store
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# IDE
+.idea/
+.vscode/

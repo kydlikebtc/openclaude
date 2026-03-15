@@ -1,3 +1,6 @@
+// Force static generation — no dynamic data on landing page
+export const dynamic = 'force-static'
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

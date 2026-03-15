@@ -3,33 +3,55 @@ global:
   evaluation_interval: 15s
   external_labels:
     monitor: 'openclaude-prod'
+    environment: 'production'
 
+# Alertmanager 配置
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: []
+        - targets:
+            - 'alertmanager:9093'
+      timeout: 10s
 
-rule_files: []
+# 告警规则文件
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
 
 scrape_configs:
+  # Prometheus 自身监控
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
+  # OpenClaude Backend API
   - job_name: 'openclaude-backend'
     static_configs:
       - targets: ['backend:8000']
     metrics_path: '/metrics'
     scheme: http
+    scrape_interval: 10s
+    scrape_timeout: 5s
 
+  # PostgreSQL Exporter
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres:5432']
+      - targets: ['postgres-exporter:9187']
+    metrics_path: '/metrics'
 
+  # Redis Exporter
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ['redis-exporter:9121']
+    metrics_path: '/metrics'
 
+  # Nginx Prometheus Exporter
   - job_name: 'nginx'
     static_configs:
-      - targets: ['nginx:9113']
+      - targets: ['nginx-exporter:9113']
+    metrics_path: '/metrics'
+
+  # Node Exporter（系统资源监控）
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    metrics_path: '/metrics'

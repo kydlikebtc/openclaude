@@ -1,0 +1,168 @@
+groups:
+  - name: openclaude_api_alerts
+    interval: 30s
+    rules:
+      # API 延迟告警：P95 超过 3s
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job="openclaude-backend"}[5m])
+          ) > 3
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API P95 延迟过高"
+          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过阈值 3s，持续超过 2 分钟。"
+
+      # 错误率告警：5xx 错误率超过 5%
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{status=~"5..",job="openclaude-backend"}[5m])
+            /
+            rate(http_requests_total{job="openclaude-backend"}[5m])
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "API 错误率过高"
+          description: "API 5xx 错误率 {{ $value | humanizePercentage }} 超过阈值 5%，持续超过 2 分钟。"
+
+      # API 服务宕机告警
+      - alert: BackendDown
+        expr: up{job="openclaude-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Backend 服务宕机"
+          description: "OpenClaude Backend 服务已宕机超过 1 分钟。"
+
+  - name: openclaude_miner_alerts
+    interval: 30s
+    rules:
+      # Miner 下线告警：通过 heartbeat 指标检测
+      - alert: MinerOffline
+        expr: |
+          (
+            count(openclaude_miner_heartbeat_age_seconds > 360)
+            or
+            vector(0)
+          ) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Miner 节点下线"
+          description: "检测到 {{ $value }} 个 Miner 节点超过 360 秒未发送心跳。"
+
+      # Miner 池耗尽告警
+      - alert: MinerPoolEmpty
+        expr: openclaude_miner_pool_size == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Miner 池为空"
+          description: "可用 Miner 池中已无活跃节点，API 请求将无法路由。"
+
+      # Miner 在线率低告警
+      - alert: LowMinerAvailability
+        expr: |
+          (openclaude_miner_pool_size / openclaude_miner_total_registered) < 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Miner 在线率低"
+          description: "当前 Miner 在线率为 {{ $value | humanizePercentage }}，低于 50%。"
+
+  - name: openclaude_infrastructure_alerts
+    interval: 60s
+    rules:
+      # PostgreSQL 宕机
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "PostgreSQL 数据库宕机"
+          description: "PostgreSQL 服务已宕机超过 1 分钟。"
+
+      # Redis 宕机
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Redis 服务宕机"
+          description: "Redis 服务已宕机超过 1 分钟。"
+
+      # 磁盘空间告警（>85%）
+      - alert: DiskSpaceHigh
+        expr: |
+          (
+            (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"})
+            / node_filesystem_size_bytes{fstype!="tmpfs"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "磁盘空间不足"
+          description: "挂载点 {{ $labels.mountpoint }} 磁盘使用率 {{ $value | humanizePercentage }} 超过 85%。"
+
+      # 内存使用告警（>90%）
+      - alert: MemoryUsageHigh
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "内存使用率过高"
+          description: "内存使用率 {{ $value | humanizePercentage }} 超过 90%。"
+
+      # CPU 使用告警（持续高负载）
+      - alert: CPUUsageHigh
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "CPU 使用率持续过高"
+          description: "CPU 使用率 {{ $value }}% 超过 85%，持续超过 10 分钟。"
+
+  - name: openclaude_billing_alerts
+    interval: 60s
+    rules:
+      # Token 消耗异常飙升
+      - alert: TokenUsageSpike
+        expr: |
+          rate(openclaude_tokens_consumed_total[5m]) >
+          (avg_over_time(rate(openclaude_tokens_consumed_total[5m])[1h:5m]) * 3)
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Token 消耗异常飙升"
+          description: "当前 Token 消耗速率是过去 1 小时均值的 3 倍以上，可能存在异常请求。"

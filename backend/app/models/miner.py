@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, VARCHAR, ForeignKey, Integer
+from sqlalchemy import DECIMAL, Float, VARCHAR, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,9 +20,34 @@ class Miner(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         DECIMAL(20, 8), default=Decimal("0"), nullable=False
     )
     referral_code: Mapped[str] = mapped_column(VARCHAR(20), unique=True, nullable=False, index=True)
+    # Self-referential FK: who referred this miner (level-1 relationship)
+    referred_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("miners.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     miner_api_keys: Mapped[list["MinerApiKey"]] = relationship(
         "MinerApiKey", back_populates="miner"
+    )
+    score_history: Mapped[list["MinerScoreHistory"]] = relationship(
+        "MinerScoreHistory", back_populates="miner", order_by="MinerScoreHistory.created_at.desc()"
+    )
+    # Many-to-one: miner that referred this miner (parent)
+    referrer: Mapped["Miner | None"] = relationship(
+        "Miner",
+        foreign_keys="[Miner.referred_by_id]",
+        back_populates="referrals",
+        remote_side="[Miner.id]",
+        lazy="select",
+    )
+    # One-to-many: miners this miner has directly referred (children)
+    referrals: Mapped[list["Miner"]] = relationship(
+        "Miner",
+        foreign_keys="[Miner.referred_by_id]",
+        back_populates="referrer",
+        lazy="select",
     )
 
 
@@ -40,6 +65,28 @@ class MinerApiKey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(VARCHAR(20), default="active", nullable=False)
 
     miner: Mapped["Miner"] = relationship("Miner", back_populates="miner_api_keys")
+
+
+class MinerScoreHistory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Persisted scoring snapshots for trend analysis and audit."""
+
+    __tablename__ = "miner_score_history"
+
+    miner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("miners.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    availability: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    latency_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    quality: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    consistency: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    efficiency: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    referral_bonus: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    final_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    miner: Mapped["Miner"] = relationship("Miner", back_populates="score_history")
 
 
 class Transaction(UUIDPrimaryKeyMixin, TimestampMixin, Base):

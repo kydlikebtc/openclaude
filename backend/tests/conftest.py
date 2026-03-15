@@ -107,6 +107,11 @@ def mock_redis() -> AsyncMock:
             return members
         return [m[0] for m in members]
 
+    async def _delete(*keys):
+        for k in keys:
+            _store.pop(k, None)
+        return len(keys)
+
     # Pipeline mock (synchronous method returning async-capable pipeline)
     class _MockPipeline:
         def __init__(self):
@@ -149,6 +154,7 @@ def mock_redis() -> AsyncMock:
     redis.zcard = _zcard
     redis.zrange = _zrange
     redis.pipeline = _pipeline
+    redis.delete = _delete
 
     return redis
 

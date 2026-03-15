@@ -20,6 +20,7 @@ from loguru import logger
 from protocol.synapse import LLMAPISynapse
 from validator.probe import ProbeTaskGenerator
 from validator.scoring import MinerScore, ScoringEngine
+from validator.trust import TrustWeightCalculator
 
 # How many blocks to wait between weight submissions
 WEIGHT_SUBMISSION_INTERVAL_BLOCKS = 100
@@ -49,6 +50,7 @@ class OpenCladeValidator:
         )
         self.scoring_engine = ScoringEngine()
         self.probe_generator = ProbeTaskGenerator()
+        self.trust_calculator = TrustWeightCalculator(netuid=config.netuid)
         self._last_weight_block: int = 0
         logger.info(
             f"OpenCladeValidator initialized | "
@@ -122,18 +124,25 @@ class OpenCladeValidator:
                     prev.smooth_score = (prev.smooth_score + score.smooth_score) / 2
                     epoch_scores[uid] = prev
 
-        # Submit weights to chain
-        weights = self.scoring_engine.scores_to_weights(epoch_scores, miner_uids)
-        await self._submit_weights(miner_uids, weights)
+        # Convert scores to raw weights, then process through Yuma Consensus alignment
+        raw_weights = self.scoring_engine.scores_to_weights(epoch_scores, miner_uids)
+        trust_result = self.trust_calculator.process(
+            raw_weights, self.metagraph, self.subtensor
+        )
+        viable, reason = self.trust_calculator.is_submission_viable(trust_result)
+        if not viable:
+            logger.warning(f"Skipping weight submission this epoch: {reason}")
+            return
+        await self._submit_weights(trust_result.processed_uids, trust_result.processed_weights)
 
     # ── Weight submission ────────────────────────────────────────────────
 
     async def _submit_weights(
         self,
         uids: List[int],
-        weights: Dict[int, float],
+        weights: List[float],
     ) -> None:
-        """Submit normalized weights to the Bittensor chain."""
+        """Submit Yuma-aligned weights to the Bittensor chain."""
         current_block = self.subtensor.get_current_block()
         if current_block - self._last_weight_block < WEIGHT_SUBMISSION_INTERVAL_BLOCKS:
             logger.debug(
@@ -143,16 +152,12 @@ class OpenCladeValidator:
             return
 
         uid_array = np.array(uids, dtype=np.int64)
-        weight_array = np.array([weights.get(uid, 0.0) for uid in uids], dtype=np.float32)
-
-        # Normalize to sum=1 (Bittensor requirement)
-        total = weight_array.sum()
-        if total > 0:
-            weight_array /= total
+        weight_array = np.array(weights, dtype=np.float32)
 
         logger.info(
             f"Submitting weights | block={current_block} | "
-            f"non-zero={np.count_nonzero(weight_array)}/{len(uid_array)}"
+            f"non-zero={np.count_nonzero(weight_array)}/{len(uid_array)} | "
+            f"sum={weight_array.sum():.4f}"
         )
 
         try:

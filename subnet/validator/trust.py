@@ -191,19 +191,30 @@ class TrustWeightCalculator:
 
         # Step 1: quantile pruning — zero out bottom exclude_quantile fraction
         if self.exclude_quantile > 0 and len(weights) > 1:
-            threshold = np.quantile(weights[weights > 0], self.exclude_quantile) if any(weights > 0) else 0.0
-            weights = np.where(weights < threshold, 0.0, weights)
+            positive = weights[weights > 0]
+            if len(positive) > 1:
+                threshold = np.quantile(positive, self.exclude_quantile)
+                weights = np.where(weights < threshold, 0.0, weights)
 
-        # Step 2: cap maximum weight
+        # Step 2: normalize, then iteratively cap at max_weight_limit.
+        # A single normalize+clip step is insufficient because renormalization
+        # after clipping can push uncapped miners back above the limit.
+        # Iteration converges when no miner exceeds the cap.
         total = weights.sum()
         if total > 0:
-            weights /= total  # Normalize first
-        weights = np.minimum(weights, self.max_weight_limit)
+            weights = weights / total
 
-        # Step 3: re-normalize after capping
-        total = weights.sum()
-        if total > 0:
-            weights /= total
+        for _ in range(50):  # Bounded iterations; typically converges in < 5
+            if self.max_weight_limit >= 1.0:
+                break  # No cap needed
+            clipped = np.minimum(weights, self.max_weight_limit)
+            if np.allclose(clipped, weights, atol=1e-8):
+                break  # Stable
+            total = clipped.sum()
+            if total > 0:
+                weights = clipped / total
+            else:
+                weights = clipped
 
         # Separate kept and excluded
         kept_mask = weights > 0

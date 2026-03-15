@@ -1,0 +1,35 @@
+# OpenClade Miner Configuration — Bittensor Localnet
+# Generated: 2026-03-16
+# Used for local development and E2E validation without testnet TAO dependency.
+# NEVER commit actual API keys to git.
+
+# Wallet configuration
+# Coldkey: 5D32sBgdoTqXNbrd89iqfxJsBFY5uF8U7E3aMvycGJ8b8W9G
+# Hotkey:  5CtHfKsVfdrAbJk1LHVcS3astwR4RnDV8Qy6gVRjgeUsCvca
+
+wallet_name: "openclaude-miner"
+wallet_hotkey: "miner"
+
+# Subnet: using netuid=3 (registered 2026-03-16 on localnet)
+netuid: 3
+
+# Network: localnet mode
+subtensor_network: "ws://127.0.0.1:9944"
+
+# Axon settings
+axon_port: 8091
+axon_ip: "127.0.0.1"
+
+# API keys — USE ENVIRONMENT VARIABLE:
+# export OPENCLAUDE_API_KEYS="sk-ant-api03-YOUR_KEY_HERE"
+api_keys: []
+
+# Supported models
+supported_models:
+  - "claude-haiku-4-5-20251001"
+  - "claude-sonnet-4-6"
+
+# Safety limits (relaxed for localnet)
+max_concurrent_requests: 10
+request_timeout_sec: 60
+min_stake_tao: 0.0  # Localnet: no stake requirement

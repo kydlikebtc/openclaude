@@ -260,10 +260,13 @@ async def _forward_to_miner(api_key: str, payload: dict, request_id: str) -> dic
         "x-request-id": request_id,
     }
 
+    from app.core.config import settings
+
+    anthropic_url = f"{settings.anthropic_base_url.rstrip('/')}/v1/messages"
     start_time = time.monotonic()
     async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
+            anthropic_url,
             json=payload,
             headers=headers,
         )

@@ -1,0 +1,26 @@
+# OpenClade Validator Configuration — Bittensor Localnet
+# Generated: 2026-03-16
+# Used for local development and E2E validation without testnet TAO dependency.
+
+# Wallet configuration
+# wallet.name: openclaude-validator
+# wallet.hotkey: validator
+# Coldkey: 5DcZeL6VwxB3aTEEdCjyH2TG1d1B1w4xUBYKSMh6MMG1Npgk
+# Hotkey:  5F9Sy8xFv31WQ3rmeK37yyc6NGX716mpmdjja2xsB4iqcQCa
+
+# Network: localnet mode
+subtensor_network: "ws://127.0.0.1:9944"
+
+# Subnet: netuid=3 (registered 2026-03-16 on localnet)
+netuid: 3
+
+# Probe settings
+probe_interval_sec: 30
+max_concurrent_probes: 5
+probe_timeout_sec: 15
+
+# Weight submission
+weight_submission_interval_blocks: 10
+min_allowed_weights: 1
+exclude_quantile: 0.1
+max_weight_limit: 1.0

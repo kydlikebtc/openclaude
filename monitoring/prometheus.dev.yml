@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'openclaude-dev'
+    environment: 'development'
+
+# 开发环境不接 Alertmanager（无需告警通知）
+# alerting: 已禁用
+
+# 告警规则（保留，可在 UI 中查看规则状态）
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # OpenClaude Backend API（核心指标来源）
+  - job_name: 'openclaude-backend'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: '/metrics'
+    scheme: http
+    scrape_interval: 10s
+    scrape_timeout: 5s

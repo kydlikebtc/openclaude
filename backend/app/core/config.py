@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     max_retries: int = 3
     request_timeout: int = 300
 
+    # Anthropic API — override for local mock/benchmark environments
+    anthropic_base_url: str = "https://api.anthropic.com"
+
 
 settings = Settings()
 

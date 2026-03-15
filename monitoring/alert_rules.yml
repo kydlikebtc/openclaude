@@ -2,7 +2,45 @@ groups:
   - name: openclaude_api_alerts
     interval: 30s
     rules:
-      # API 延迟告警：P95 超过 2s（SLO 目标边界）
+      # ─────────────────────────────────────────────────────────────────────────
+      # SLO 层 1：路由/代理开销 (Routing Overhead)
+      # 目标：P95 < 200ms（不含 LLM 处理时间）
+      # 指标：openclaude_routing_overhead_seconds（自定义指标，需 Backend 实现）
+      # ─────────────────────────────────────────────────────────────────────────
+      - alert: HighRoutingOverheadWarning
+        expr: |
+          histogram_quantile(0.95,
+            rate(openclaude_routing_overhead_seconds_bucket{job="openclaude-backend"}[5m])
+          ) > 0.2
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+          slo_tier: routing
+        annotations:
+          summary: "路由开销 P95 偏高"
+          description: "路由/代理开销 P95 为 {{ $value | humanizeDuration }}，超过目标 200ms。请检查 Miner 选择和连接池状态。"
+
+      - alert: HighRoutingOverheadCritical
+        expr: |
+          histogram_quantile(0.95,
+            rate(openclaude_routing_overhead_seconds_bucket{job="openclaude-backend"}[5m])
+          ) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+          slo_tier: routing
+        annotations:
+          summary: "路由开销 P95 严重超标"
+          description: "路由/代理开销 P95 为 {{ $value | humanizeDuration }}，超过严重阈值 500ms，立即响应！"
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # SLO 层 2：端到端响应 TTFB (Time to First Byte)
+      # 目标：P95 < 2s（含 LLM 首字节时间，适用于非流式短请求）
+      # 指标：http_request_duration_seconds（prometheus_fastapi_instrumentator）
+      # 注意：LLM 流式响应的完整时间不纳入此 SLO
+      # ─────────────────────────────────────────────────────────────────────────
       - alert: HighAPILatencyWarning
         expr: |
           histogram_quantile(0.95,
@@ -12,11 +50,11 @@ groups:
         labels:
           severity: warning
           team: backend
+          slo_tier: ttfb
         annotations:
-          summary: "API P95 延迟偏高"
-          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 目标 2s，持续超过 2 分钟。"
+          summary: "API P95 端到端延迟偏高"
+          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 目标 2s，持续超过 2 分钟。注意：若为正常 LLM 流式响应，请结合路由开销指标判断。"
 
-      # API 延迟告警：P95 超过 5s（SLO 严重阈值）
       - alert: HighAPILatencyCritical
         expr: |
           histogram_quantile(0.95,
@@ -26,9 +64,10 @@ groups:
         labels:
           severity: critical
           team: backend
+          slo_tier: ttfb
         annotations:
-          summary: "API P95 延迟严重超标"
-          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 严重阈值 5s，立即响应！"
+          summary: "API P95 端到端延迟严重超标"
+          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过严重阈值 5s，立即响应！若路由开销正常，可能为 Claude API 上游异常。"
 
       # 错误率告警：5xx 错误率超过 5%
       - alert: HighErrorRate

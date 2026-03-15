@@ -1,54 +1,49 @@
 global:
-  # 告警重发间隔（相同告警再次发送的间隔）
   resolve_timeout: 5m
-  # SMTP 配置（可选，用于邮件通知）
-  # smtp_smarthost: 'smtp.example.com:587'
-  # smtp_from: 'alertmanager@openclaude.io'
-  # smtp_auth_username: '${SMTP_USERNAME}'
-  # smtp_auth_password: '${SMTP_PASSWORD}'
+  # 告警重发间隔默认为 4h（各 route 可覆盖）
+  # SMTP（可选）: 通过环境变量注入 smtp_smarthost / smtp_from
 
-# 告警路由规则
+# ----------------------------------------------------------------
+# 路由规则
+# ----------------------------------------------------------------
 route:
-  # 默认接收者
-  receiver: 'default'
-  # 同一组告警聚合等待时间
+  receiver: 'slack-default'
   group_wait: 30s
-  # 同一组新增告警的发送间隔
   group_interval: 5m
-  # 同一告警重复发送间隔
   repeat_interval: 4h
-  # 按 alertname 和 team 分组
   group_by: ['alertname', 'team', 'severity']
 
   routes:
-    # Critical 告警路由到紧急通道
+    # P0 Critical：10s 内发送，每小时重复
     - match:
         severity: critical
-      receiver: 'critical-alerts'
+      receiver: 'slack-critical'
       group_wait: 10s
       repeat_interval: 1h
 
-    # Miner 相关告警
+    # Backend 团队告警
     - match:
         team: backend
-      receiver: 'backend-team'
+      receiver: 'slack-backend'
       group_wait: 30s
 
-    # 运维告警
+    # Ops 团队告警
     - match:
         team: ops
-      receiver: 'ops-team'
+      receiver: 'slack-ops'
 
+# ----------------------------------------------------------------
 # 告警抑制规则
+# ----------------------------------------------------------------
 inhibit_rules:
-  # 如果 BackendDown 触发，抑制延迟/错误率告警（次级症状）
+  # BackendDown 时抑制延迟/错误率告警（次级症状）
   - source_match:
       alertname: 'BackendDown'
     target_match_re:
       alertname: 'HighAPILatencyWarning|HighAPILatencyCritical|HighErrorRate'
     equal: ['instance']
 
-  # 如果 PostgreSQLDown 触发，抑制数据库相关的次要告警
+  # PostgreSQLDown critical 时抑制同 instance 的 warning
   - source_match:
       alertname: 'PostgreSQLDown'
       severity: 'critical'
@@ -56,47 +51,92 @@ inhibit_rules:
       severity: 'warning'
     equal: ['instance']
 
+  # LowMinerAvailabilityCritical 时抑制 Warning 版本
+  - source_match:
+      alertname: 'LowMinerAvailabilityCritical'
+    target_match:
+      alertname: 'LowMinerAvailabilityWarning'
+
+  # HighAPILatencyCritical 时抑制 Warning 版本
+  - source_match:
+      alertname: 'HighAPILatencyCritical'
+    target_match:
+      alertname: 'HighAPILatencyWarning'
+
+# ----------------------------------------------------------------
+# 接收者
+# 环境变量:
+#   SLACK_WEBHOOK_URL         — 默认/通用 Slack webhook
+#   SLACK_CRITICAL_WEBHOOK_URL — 专用 critical channel（可同上）
+#   SLACK_BACKEND_WEBHOOK_URL  — backend 团队 channel
+#   SLACK_OPS_WEBHOOK_URL      — ops 团队 channel
+# ----------------------------------------------------------------
 receivers:
-  - name: 'default'
-    # 默认接收者：webhook（可配置为飞书/微信/Slack）
-    webhook_configs:
-      - url: '${ALERT_WEBHOOK_URL:-http://localhost:9999/webhook}'
+  - name: 'slack-default'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}'
+        channel: '#openclade-alerts'
         send_resolved: true
-        http_config:
-          follow_redirects: true
-        # 自定义告警消息格式
-        title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+        icon_emoji: ':bell:'
+        username: 'OpenClade Alertmanager'
+        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}'
         text: |
           {{ range .Alerts }}
           *告警*: {{ .Annotations.summary }}
           *详情*: {{ .Annotations.description }}
           *严重度*: {{ .Labels.severity }}
-          *时间*: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          *时间*: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ if .GeneratorURL }}*查看*: <{{ .GeneratorURL }}|Prometheus>{{ end }}
           {{ end }}
+        color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'
 
-  - name: 'critical-alerts'
-    webhook_configs:
-      - url: '${ALERT_WEBHOOK_URL:-http://localhost:9999/webhook}'
+  - name: 'slack-critical'
+    slack_configs:
+      - api_url: '${SLACK_CRITICAL_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+        channel: '#openclade-critical'
         send_resolved: true
-        title: '🚨 [CRITICAL] {{ .GroupLabels.alertname }}'
+        icon_emoji: ':rotating_light:'
+        username: 'OpenClade CRITICAL'
+        title: ':rotating_light: [CRITICAL] {{ .GroupLabels.alertname }} — 立即响应'
         text: |
           {{ range .Alerts }}
           *【P0 紧急告警】*
           *告警*: {{ .Annotations.summary }}
           *详情*: {{ .Annotations.description }}
-          *时间*: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
-          ---
-          立即响应：参考 docs/ops/incident_response.md
+          *触发时间*: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          *运维手册*: <https://github.com/kydlikebtc/openclaude/blob/main/docs/ops/incident_response.md|事件响应 SOP>
+          {{ if .GeneratorURL }}*Prometheus*: <{{ .GeneratorURL }}|查看图表>{{ end }}
           {{ end }}
+        color: 'danger'
 
-  - name: 'backend-team'
-    webhook_configs:
-      - url: '${ALERT_WEBHOOK_URL:-http://localhost:9999/webhook}'
+  - name: 'slack-backend'
+    slack_configs:
+      - api_url: '${SLACK_BACKEND_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+        channel: '#openclade-backend'
         send_resolved: true
-        title: '[Backend] {{ .GroupLabels.alertname }}'
+        icon_emoji: ':wrench:'
+        username: 'OpenClade Alertmanager'
+        title: '[Backend] {{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *严重度*: {{ .Labels.severity }} | *时间*: {{ .StartsAt.Format "15:04:05" }}
+          {{ end }}
+        color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'
 
-  - name: 'ops-team'
-    webhook_configs:
-      - url: '${ALERT_WEBHOOK_URL:-http://localhost:9999/webhook}'
+  - name: 'slack-ops'
+    slack_configs:
+      - api_url: '${SLACK_OPS_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+        channel: '#openclade-ops'
         send_resolved: true
-        title: '[Ops] {{ .GroupLabels.alertname }}'
+        icon_emoji: ':bar_chart:'
+        username: 'OpenClade Alertmanager'
+        title: '[Ops] {{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          *严重度*: {{ .Labels.severity }} | *时间*: {{ .StartsAt.Format "15:04:05" }}
+          {{ end }}
+        color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'

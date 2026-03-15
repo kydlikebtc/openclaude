@@ -123,7 +123,11 @@ services:
       - "--storage.path=/alertmanager"
       - "--web.external-url=${ALERTMANAGER_URL:-http://localhost:9093}"
     environment:
-      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL:-http://localhost:9999/webhook}
+      # Slack Webhook URLs — set in .env.prod (see .env.example for docs)
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}
+      - SLACK_CRITICAL_WEBHOOK_URL=${SLACK_CRITICAL_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}
+      - SLACK_BACKEND_WEBHOOK_URL=${SLACK_BACKEND_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}
+      - SLACK_OPS_WEBHOOK_URL=${SLACK_OPS_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}
     restart: unless-stopped
     logging:
       driver: "json-file"

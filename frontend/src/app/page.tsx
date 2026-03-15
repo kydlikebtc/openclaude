@@ -3,11 +3,38 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const PRICING = {
-  official: { input: 3.0, output: 15.0 },
-  openclade: { input: 0.9, output: 4.5 },
-  founding: { input: 0.81, output: 4.05 },
-}
+const PRICING_TIERS = [
+  {
+    name: 'Founder',
+    badge: 'Month 1–3',
+    badgeColor: 'bg-orange-500/30 text-orange-300 border-orange-400/30',
+    discount: '10%',
+    description: 'of official price',
+    highlight: 'Lock in forever',
+    cta: 'Join as Founder',
+    featured: true,
+  },
+  {
+    name: 'Early',
+    badge: 'Month 4–6',
+    badgeColor: 'bg-green-500/20 text-green-400 border-green-400/30',
+    discount: '15%',
+    description: 'of official price',
+    highlight: 'Save 85%',
+    cta: 'Get Started',
+    featured: false,
+  },
+  {
+    name: 'Standard',
+    badge: 'Month 7+',
+    badgeColor: 'bg-slate-500/20 text-slate-400 border-slate-400/30',
+    discount: '20–25%',
+    description: 'of official price',
+    highlight: 'Save 75–80%',
+    cta: 'Get Started',
+    featured: false,
+  },
+]
 
 const CODE_EXAMPLE = `import anthropic
 
@@ -74,26 +101,25 @@ export default function Home() {
             Powered by Bittensor TAO Subnet
           </Badge>
           <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-            Claude API at{' '}
-            <span className="text-orange-400">25–35%</span>
+            Affordable Claude API Access,
             <br />
-            of Official Price
+            <span className="text-orange-400">Powered by Decentralization</span>
           </h1>
           <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-            Access Anthropic&apos;s latest Claude models through a decentralized miner network.
+            Save 65–75% on Claude API costs through the Bittensor network.
             Pay only for what you use — no subscriptions, no commitments.
           </p>
           <div className="flex gap-4 justify-center flex-wrap mb-16">
             <Link href="/register">
               <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-8">
-                Get Started Free
+                Get Started
               </Button>
             </Link>
-            <a href="#pricing">
+            <Link href="/miner/register">
               <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 px-8">
-                View Pricing
+                Become a Miner
               </Button>
-            </a>
+            </Link>
           </div>
           {/* Stats bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
@@ -111,48 +137,48 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Value Props ── */}
+        {/* ── Features ── */}
         <section className="bg-white/3 border-y border-white/10 py-20">
           <div className="max-w-6xl mx-auto px-6">
-            <h2 className="text-3xl font-bold text-center mb-12">Who benefits from OpenClade?</h2>
+            <h2 className="text-3xl font-bold text-center mb-4">Why OpenClade?</h2>
+            <p className="text-slate-400 text-center mb-12 max-w-xl mx-auto">
+              The most cost-efficient way to access Claude — without compromising on quality or availability.
+            </p>
             <div className="grid md:grid-cols-3 gap-8">
               <Card className="bg-white/5 border-white/10 text-white">
                 <CardHeader>
-                  <div className="text-3xl mb-2">👨‍💻</div>
-                  <CardTitle className="text-lg">Developers & Teams</CardTitle>
+                  <div className="text-4xl mb-3">💸</div>
+                  <CardTitle className="text-lg">Save 65–75% on Costs</CardTitle>
                 </CardHeader>
                 <CardContent className="text-slate-400 text-sm space-y-2">
-                  <p>Save <span className="text-orange-400 font-semibold">65–75%</span> on Claude API costs.</p>
-                  <p>OpenAI-compatible SDK — change just one line of code.</p>
-                  <p>Pay-as-you-go, no upfront commitment.</p>
-                  <p>Founding members get an extra <span className="text-orange-400 font-semibold">10% off</span>.</p>
+                  <p>Access Claude Sonnet, Haiku, and Opus at a fraction of official price.</p>
+                  <p>Founder members lock in <span className="text-orange-400 font-semibold">10% of official price</span> forever.</p>
+                  <p>Pay-as-you-go — no subscriptions, no upfront commitment.</p>
                 </CardContent>
               </Card>
               <Card className="bg-white/5 border-orange-400/20 text-white border-2">
                 <CardHeader>
-                  <div className="text-3xl mb-2">⛏️</div>
+                  <div className="text-4xl mb-3">🔌</div>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    Miners
-                    <Badge className="text-xs bg-orange-500/20 text-orange-400 border-orange-400/30">Earn TAO</Badge>
+                    OpenAI SDK Compatible
+                    <Badge className="text-xs bg-orange-500/20 text-orange-400 border-orange-400/30">Drop-in</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-slate-400 text-sm space-y-2">
-                  <p>Contribute your Claude API keys to the network.</p>
-                  <p>Earn <span className="text-orange-400 font-semibold">41% of TAO subnet emissions</span>.</p>
-                  <p>Rewards scale with your uptime and response quality.</p>
-                  <p>TAO rewards cover API costs <span className="text-orange-400 font-semibold">+ profit</span>.</p>
+                  <p>100% compatible with the official Anthropic Python and JS SDKs.</p>
+                  <p>Works with the <span className="text-orange-400 font-semibold">OpenAI SDK</span> via the /v1 endpoint.</p>
+                  <p>Switch in seconds — change just <span className="text-orange-400 font-semibold">one line</span> of code.</p>
                 </CardContent>
               </Card>
               <Card className="bg-white/5 border-white/10 text-white">
                 <CardHeader>
-                  <div className="text-3xl mb-2">🌐</div>
-                  <CardTitle className="text-lg">The Ecosystem</CardTitle>
+                  <div className="text-4xl mb-3">🌐</div>
+                  <CardTitle className="text-lg">Decentralized & Uncensored</CardTitle>
                 </CardHeader>
                 <CardContent className="text-slate-400 text-sm space-y-2">
-                  <p>Decentralized AI infrastructure — no single point of failure.</p>
-                  <p>More miners → better stability and latency.</p>
-                  <p>Built on Bittensor, the leading decentralized AI network.</p>
-                  <p>Open participation, transparent scoring.</p>
+                  <p>Built on Bittensor — no single point of failure or control.</p>
+                  <p>Traffic routes across many independent miners worldwide.</p>
+                  <p>Open, transparent, censorship-resistant AI infrastructure.</p>
                 </CardContent>
               </Card>
             </div>
@@ -162,94 +188,49 @@ export default function Home() {
         {/* ── Pricing ── */}
         <section id="pricing" className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-3">Transparent Pricing</h2>
-            <p className="text-slate-400">Pay-as-you-go per million tokens. No surprises.</p>
+            <h2 className="text-3xl font-bold mb-3">Simple, Transparent Pricing</h2>
+            <p className="text-slate-400">All plans include every Claude model. Pay-as-you-go.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {/* Official */}
-            <Card className="bg-white/5 border-white/10 text-white opacity-70">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Official Anthropic</CardTitle>
-                  <Badge variant="outline" className="text-xs border-slate-500 text-slate-400">Reference</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <PricingRow label="Input (per 1M tokens)" value={`$${PRICING.official.input.toFixed(2)}`} />
-                <PricingRow label="Output (per 1M tokens)" value={`$${PRICING.official.output.toFixed(2)}`} />
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-xs text-slate-500">claude-sonnet-4-6 pricing</p>
-                </div>
-                <Link href="https://www.anthropic.com/pricing" target="_blank">
-                  <Button variant="outline" size="sm" className="w-full border-white/20 text-slate-400">
-                    Official site
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* OpenClade Standard */}
-            <Card className="bg-white/5 border-white/10 text-white">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">OpenClade</CardTitle>
-                  <Badge className="text-xs bg-green-500/20 text-green-400 border-green-400/30">Save 70%</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <PricingRow
-                  label="Input (per 1M tokens)"
-                  value={`$${PRICING.openclade.input.toFixed(2)}`}
-                  compare={`vs $${PRICING.official.input.toFixed(2)}`}
-                />
-                <PricingRow
-                  label="Output (per 1M tokens)"
-                  value={`$${PRICING.openclade.output.toFixed(2)}`}
-                  compare={`vs $${PRICING.official.output.toFixed(2)}`}
-                />
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-xs text-slate-500">All Claude models supported</p>
-                </div>
-                <Link href="/register">
-                  <Button size="sm" className="w-full bg-orange-500 hover:bg-orange-600">
-                    Get Started
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            {/* Founding Member */}
-            <Card className="bg-gradient-to-b from-orange-500/10 to-orange-900/5 border-orange-400/40 text-white">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Founding Member</CardTitle>
-                  <Badge className="text-xs bg-orange-500/30 text-orange-300 border-orange-400/30">Limited</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <PricingRow
-                  label="Input (per 1M tokens)"
-                  value={`$${PRICING.founding.input.toFixed(2)}`}
-                  compare="Extra 10% off"
-                  highlight
-                />
-                <PricingRow
-                  label="Output (per 1M tokens)"
-                  value={`$${PRICING.founding.output.toFixed(2)}`}
-                  compare="Extra 10% off"
-                  highlight
-                />
-                <div className="pt-2 border-t border-orange-400/20">
-                  <p className="text-xs text-orange-400/70">Lock in this rate forever</p>
-                </div>
-                <Link href="/register">
-                  <Button size="sm" className="w-full bg-orange-500 hover:bg-orange-600">
-                    Join as Founding Member
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+            {PRICING_TIERS.map((tier) => (
+              <Card
+                key={tier.name}
+                className={
+                  tier.featured
+                    ? 'bg-gradient-to-b from-orange-500/10 to-orange-900/5 border-orange-400/40 text-white'
+                    : 'bg-white/5 border-white/10 text-white'
+                }
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{tier.name}</CardTitle>
+                    <Badge className={`text-xs ${tier.badgeColor}`}>{tier.badge}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="py-4">
+                    <div className={`text-5xl font-bold mb-1 ${tier.featured ? 'text-orange-400' : 'text-white'}`}>
+                      {tier.discount}
+                    </div>
+                    <div className="text-sm text-slate-400">{tier.description}</div>
+                  </div>
+                  <div className={`pt-2 border-t ${tier.featured ? 'border-orange-400/20' : 'border-white/10'}`}>
+                    <p className={`text-xs ${tier.featured ? 'text-orange-400/70' : 'text-slate-500'}`}>
+                      {tier.highlight}
+                    </p>
+                  </div>
+                  <Link href="/register">
+                    <Button size="sm" className="w-full bg-orange-500 hover:bg-orange-600">
+                      {tier.cta}
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+          <p className="text-center text-xs text-slate-500 mt-6">
+            * Prices are a percentage of official Anthropic pricing. All Claude models (Haiku, Sonnet, Opus) included.
+          </p>
         </section>
 
         {/* ── Code Example ── */}
@@ -293,6 +274,52 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── How It Works ── */}
+        <section className="max-w-6xl mx-auto px-6 py-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-3">Get Started in 3 Steps</h2>
+            <p className="text-slate-400">From sign-up to your first API call in under 2 minutes.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: '1',
+                title: 'Register',
+                desc: 'Create a free account at openclade.io. No credit card required to get started.',
+                icon: '📝',
+              },
+              {
+                step: '2',
+                title: 'Get API Key',
+                desc: 'Generate your API key from the dashboard and top up your balance to begin.',
+                icon: '🔑',
+              },
+              {
+                step: '3',
+                title: 'Start Calling',
+                desc: 'Point your existing SDK to our endpoint. Change one line of code — that\'s it.',
+                icon: '🚀',
+              },
+            ].map(({ step, title, desc, icon }) => (
+              <div key={step} className="relative bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                <div className="text-3xl mb-3">{icon}</div>
+                <div className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm mx-auto mb-4">
+                  {step}
+                </div>
+                <h3 className="font-semibold text-lg mb-2">{title}</h3>
+                <p className="text-slate-400 text-sm">{desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/register">
+              <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-white px-10">
+                Create Free Account
+              </Button>
+            </Link>
+          </div>
+        </section>
+
         {/* ── Miner CTA ── */}
         <section id="miners" className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
@@ -304,6 +331,19 @@ export default function Home() {
               Join the OpenClade miner network. Provide API capacity, earn TAO rewards.
               The network rewards performance — quality uptime, fast responses.
             </p>
+          </div>
+          {/* Miner earnings highlight */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-12">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+              <div className="text-sm text-slate-400 mb-1">Regular Miner</div>
+              <div className="text-3xl font-bold text-orange-400 mb-1">$3,300<span className="text-base font-normal text-slate-400">/mo</span></div>
+              <div className="text-xs text-slate-500">Net profit after API costs</div>
+            </div>
+            <div className="bg-gradient-to-b from-orange-500/10 to-transparent border border-orange-400/30 rounded-xl p-6 text-center">
+              <div className="text-sm text-slate-400 mb-1">Top-Tier Miner</div>
+              <div className="text-3xl font-bold text-orange-400 mb-1">$11,500<span className="text-base font-normal text-slate-400">/mo</span></div>
+              <div className="text-xs text-orange-400/60">With referrals & high uptime</div>
+            </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             {[
@@ -332,39 +372,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-          {/* Earnings table */}
-          <Card className="bg-white/5 border-white/10 text-white max-w-2xl mx-auto mb-8">
-            <CardHeader>
-              <CardTitle className="text-base text-center">Estimated Monthly Miner Earnings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-slate-500 text-xs uppercase border-b border-white/10">
-                    <th className="text-left py-2">Network size</th>
-                    <th className="text-right py-2">TAO / month</th>
-                    <th className="text-right py-2">USD equiv.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {[
-                    { size: '10 miners (early)', tao: '41 TAO', usd: '~$12,300' },
-                    { size: '50 miners', tao: '8 TAO', usd: '~$2,460' },
-                    { size: '100 miners', tao: '4 TAO', usd: '~$1,230' },
-                  ].map(({ size, tao, usd }) => (
-                    <tr key={size}>
-                      <td className="py-3 text-slate-300">{size}</td>
-                      <td className="py-3 text-right text-orange-400">{tao}</td>
-                      <td className="py-3 text-right text-slate-400">{usd}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="text-xs text-slate-500 mt-3 text-center">
-                * Based on 41% of subnet emissions at ~$300/TAO. Actual rewards vary with TAO price and network size.
-              </p>
-            </CardContent>
-          </Card>
           <div className="text-center">
             <Link href="/miner/register">
               <Button size="lg" className="bg-orange-500 hover:bg-orange-600 px-10">
@@ -450,8 +457,9 @@ export default function Home() {
               <Link href="/docs" className="text-slate-400 hover:text-white transition-colors">Documentation</Link>
               <Link href="/register" className="text-slate-400 hover:text-white transition-colors">Sign Up</Link>
               <Link href="/miner/register" className="text-slate-400 hover:text-white transition-colors">Become a Miner</Link>
+              <Link href="https://github.com/kydlikebtc/openclaude" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</Link>
               <Link href="/login" className="text-slate-400 hover:text-white transition-colors">Log In</Link>
-              <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">Admin</Link>
+              <Link href="https://discord.gg/openclade" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Community</Link>
             </div>
           </div>
           <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between items-center gap-2 text-xs text-slate-500">
@@ -460,30 +468,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </div>
-  )
-}
-
-function PricingRow({
-  label,
-  value,
-  compare,
-  highlight,
-}: {
-  label: string
-  value: string
-  compare?: string
-  highlight?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-slate-400">{label}</span>
-      <div className="text-right">
-        <span className={`font-semibold ${highlight ? 'text-orange-400' : 'text-white'}`}>{value}</span>
-        {compare && (
-          <div className={`text-xs mt-0.5 ${highlight ? 'text-orange-400/70' : 'text-slate-500'}`}>{compare}</div>
-        )}
-      </div>
     </div>
   )
 }

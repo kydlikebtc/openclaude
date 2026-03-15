@@ -2,19 +2,33 @@ groups:
   - name: openclaude_api_alerts
     interval: 30s
     rules:
-      # API 延迟告警：P95 超过 3s
-      - alert: HighAPILatency
+      # API 延迟告警：P95 超过 2s（SLO 目标边界）
+      - alert: HighAPILatencyWarning
         expr: |
           histogram_quantile(0.95,
             rate(http_request_duration_seconds_bucket{job="openclaude-backend"}[5m])
-          ) > 3
+          ) > 2
         for: 2m
         labels:
           severity: warning
           team: backend
         annotations:
-          summary: "API P95 延迟过高"
-          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过阈值 3s，持续超过 2 分钟。"
+          summary: "API P95 延迟偏高"
+          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 目标 2s，持续超过 2 分钟。"
+
+      # API 延迟告警：P95 超过 5s（SLO 严重阈值）
+      - alert: HighAPILatencyCritical
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{job="openclaude-backend"}[5m])
+          ) > 5
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "API P95 延迟严重超标"
+          description: "API P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 严重阈值 5s，立即响应！"
 
       # 错误率告警：5xx 错误率超过 5%
       - alert: HighErrorRate
@@ -73,17 +87,29 @@ groups:
           summary: "Miner 池为空"
           description: "可用 Miner 池中已无活跃节点，API 请求将无法路由。"
 
-      # Miner 在线率低告警
-      - alert: LowMinerAvailability
+      # Miner 在线率低告警：低于 90%（SLO 目标边界）
+      - alert: LowMinerAvailabilityWarning
         expr: |
-          (openclaude_miner_pool_size / openclaude_miner_total_registered) < 0.5
+          (openclaude_miner_pool_size / openclaude_miner_total_registered) < 0.9
         for: 5m
         labels:
           severity: warning
           team: backend
         annotations:
-          summary: "Miner 在线率低"
-          description: "当前 Miner 在线率为 {{ $value | humanizePercentage }}，低于 50%。"
+          summary: "Miner 在线率偏低"
+          description: "当前 Miner 在线率为 {{ $value | humanizePercentage }}，低于 SLO 目标 90%。"
+
+      # Miner 在线率低告警：低于 70%（SLO 严重阈值）
+      - alert: LowMinerAvailabilityCritical
+        expr: |
+          (openclaude_miner_pool_size / openclaude_miner_total_registered) < 0.7
+        for: 3m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Miner 在线率严重偏低"
+          description: "当前 Miner 在线率为 {{ $value | humanizePercentage }}，低于 SLO 严重阈值 70%，立即响应！"
 
   - name: openclaude_infrastructure_alerts
     interval: 60s

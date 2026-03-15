@@ -41,11 +41,11 @@ route:
 
 # 告警抑制规则
 inhibit_rules:
-  # 如果 BackendDown 触发，抑制 HighAPILatency 和 HighErrorRate 告警
+  # 如果 BackendDown 触发，抑制延迟/错误率告警（次级症状）
   - source_match:
       alertname: 'BackendDown'
     target_match_re:
-      alertname: 'HighAPILatency|HighErrorRate'
+      alertname: 'HighAPILatencyWarning|HighAPILatencyCritical|HighErrorRate'
     equal: ['instance']
 
   # 如果 PostgreSQLDown 触发，抑制数据库相关的次要告警

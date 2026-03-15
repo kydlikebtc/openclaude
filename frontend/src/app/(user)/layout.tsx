@@ -1,25 +1,26 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserSidebar } from '@/components/layout/UserSidebar'
 import { useAuthStore } from '@/store/auth'
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const { token, fetchMe, user } = useAuthStore()
+  const { user, fetchMe } = useAuthStore()
+  const [checking, setChecking] = useState(!user)
 
   useEffect(() => {
-    if (!token) {
-      router.push('/login')
-      return
-    }
     if (!user) {
-      fetchMe().catch(() => router.push('/login'))
+      fetchMe()
+        .catch(() => router.push('/login'))
+        .finally(() => setChecking(false))
+    } else {
+      setChecking(false)
     }
-  }, [token, user, router, fetchMe])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!token) return null
+  if (checking) return null
 
   return (
     <div className="flex min-h-screen bg-slate-50">

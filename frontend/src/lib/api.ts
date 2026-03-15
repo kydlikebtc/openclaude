@@ -5,17 +5,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
-})
-
-// Attach JWT token on every request
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-  }
-  return config
+  withCredentials: true, // Send httpOnly cookies automatically
 })
 
 // Redirect to login on 401
@@ -23,7 +13,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('access_token')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -48,6 +37,8 @@ export const authApi = {
 
   login: (email: string, password: string) =>
     api.post<TokenResponse>('/auth/login', { email, password }),
+
+  logout: () => api.post('/auth/logout'),
 
   me: () => api.get<UserResponse>('/auth/me'),
 }
@@ -121,6 +112,27 @@ export interface MinerResponse {
   created_at: string
 }
 
+export interface MinerEarningsRecord {
+  date: string
+  requests: number
+  tokens_in: number
+  tokens_out: number
+  gross_revenue: string
+  earnings: string
+}
+
+export interface MinerEarningsResponse {
+  miner_id: string
+  hotkey: string
+  stake_amount: string
+  revenue_share_pct: number
+  total_gross_revenue: string
+  total_earnings: string
+  daily: MinerEarningsRecord[]
+  start: string
+  end: string
+}
+
 export const minersApi = {
   list: (status?: string) =>
     api.get<MinerResponse[]>(`/miners${status ? `?status_filter=${status}` : ''}`),
@@ -134,4 +146,7 @@ export const minersApi = {
   }) => api.post<MinerResponse>('/miners/register', data),
 
   poolStatus: () => api.get('/miners/pool'),
+
+  earnings: (minerId: string, days = 30) =>
+    api.get<MinerEarningsResponse>(`/miners/${minerId}/earnings?days=${days}`),
 }

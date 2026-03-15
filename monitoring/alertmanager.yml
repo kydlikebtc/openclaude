@@ -1,7 +1,6 @@
 global:
   resolve_timeout: 5m
   # 告警重发间隔默认为 4h（各 route 可覆盖）
-  # SMTP（可选）: 通过环境变量注入 smtp_smarthost / smtp_from
 
 # ----------------------------------------------------------------
 # 路由规则
@@ -65,78 +64,116 @@ inhibit_rules:
 
 # ----------------------------------------------------------------
 # 接收者
-# 环境变量:
-#   SLACK_WEBHOOK_URL         — 默认/通用 Slack webhook
-#   SLACK_CRITICAL_WEBHOOK_URL — 专用 critical channel（可同上）
-#   SLACK_BACKEND_WEBHOOK_URL  — backend 团队 channel
-#   SLACK_OPS_WEBHOOK_URL      — ops 团队 channel
+# 环境变量 (通过 --config.expand-env 注入):
+#   ALERT_WEBHOOK_URL          — 默认/通用 Slack webhook (必填)
+#   ALERT_CRITICAL_WEBHOOK_URL — 专用 critical channel (可选, 默认同上)
+#   ALERT_BACKEND_WEBHOOK_URL  — backend 团队 channel (可选, 默认同上)
+#   ALERT_OPS_WEBHOOK_URL      — ops 团队 channel (可选, 默认同上)
+#   GRAFANA_URL                — Grafana 仪表盘地址 (可选, 默认 http://localhost:3001)
 # ----------------------------------------------------------------
 receivers:
   - name: 'slack-default'
     slack_configs:
-      - api_url: '${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}'
+      - api_url: '${ALERT_WEBHOOK_URL}'
         channel: '#openclade-alerts'
         send_resolved: true
         icon_emoji: ':bell:'
         username: 'OpenClade Alertmanager'
-        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}'
-        text: |
-          {{ range .Alerts }}
-          *告警*: {{ .Annotations.summary }}
-          *详情*: {{ .Annotations.description }}
-          *严重度*: {{ .Labels.severity }}
-          *时间*: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
-          {{ if .GeneratorURL }}*查看*: <{{ .GeneratorURL }}|Prometheus>{{ end }}
-          {{ end }}
+        mrkdwn_in: ['text', 'pretext', 'fallback']
         color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'
+        pretext: '{{ if eq .Status "resolved" }}:white_check_mark: *[RESOLVED]* {{ else }}:warning: *[FIRING:{{ .Alerts.Firing | len }}]* {{ end }}{{ .GroupLabels.alertname }}'
+        title: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        title_link: '${GRAFANA_URL:-http://localhost:3001}/d/openclaude-overview'
+        fallback: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        fields:
+          - title: '严重度'
+            value: '{{ (index .Alerts 0).Labels.severity }}'
+            short: true
+          - title: '团队'
+            value: '{{ (index .Alerts 0).Labels.team }}'
+            short: true
+          - title: '触发时间'
+            value: '{{ (index .Alerts 0).StartsAt.Format "2006-01-02 15:04:05 UTC" }}'
+            short: true
+          - title: 'Prometheus'
+            value: '{{ if (index .Alerts 0).GeneratorURL }}<{{ (index .Alerts 0).GeneratorURL }}|查看图表>{{ else }}N/A{{ end }}'
+            short: true
+        footer: 'OpenClade Monitoring'
+        footer_icon: 'https://prometheus.io/assets/prometheus_logo_grey.svg'
 
   - name: 'slack-critical'
     slack_configs:
-      - api_url: '${SLACK_CRITICAL_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+      - api_url: '${ALERT_CRITICAL_WEBHOOK_URL:-${ALERT_WEBHOOK_URL}}'
         channel: '#openclade-critical'
         send_resolved: true
         icon_emoji: ':rotating_light:'
         username: 'OpenClade CRITICAL'
-        title: ':rotating_light: [CRITICAL] {{ .GroupLabels.alertname }} — 立即响应'
-        text: |
-          {{ range .Alerts }}
-          *【P0 紧急告警】*
-          *告警*: {{ .Annotations.summary }}
-          *详情*: {{ .Annotations.description }}
-          *触发时间*: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
-          *运维手册*: <https://github.com/kydlikebtc/openclaude/blob/main/docs/ops/incident_response.md|事件响应 SOP>
-          {{ if .GeneratorURL }}*Prometheus*: <{{ .GeneratorURL }}|查看图表>{{ end }}
-          {{ end }}
-        color: 'danger'
+        mrkdwn_in: ['text', 'pretext', 'fallback']
+        color: '{{ if eq .Status "resolved" }}good{{ else }}danger{{ end }}'
+        pretext: '{{ if eq .Status "resolved" }}:white_check_mark: *[P0 RESOLVED]* {{ else }}:rotating_light: *[P0 CRITICAL — 立即响应]* {{ end }}'
+        title: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        title_link: '${GRAFANA_URL:-http://localhost:3001}/d/openclaude-overview'
+        fallback: '[CRITICAL] {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        fields:
+          - title: '触发时间'
+            value: '{{ (index .Alerts 0).StartsAt.Format "2006-01-02 15:04:05 UTC" }}'
+            short: true
+          - title: '实例'
+            value: '{{ (index .Alerts 0).Labels.instance }}'
+            short: true
+          - title: '运维手册'
+            value: '<https://github.com/kydlikebtc/openclaude/blob/main/docs/ops/incident_response.md|事件响应 SOP>'
+            short: true
+          - title: 'Prometheus'
+            value: '{{ if (index .Alerts 0).GeneratorURL }}<{{ (index .Alerts 0).GeneratorURL }}|查看图表>{{ else }}N/A{{ end }}'
+            short: true
+        footer: 'OpenClade Critical Alerts'
+        footer_icon: 'https://prometheus.io/assets/prometheus_logo_grey.svg'
 
   - name: 'slack-backend'
     slack_configs:
-      - api_url: '${SLACK_BACKEND_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+      - api_url: '${ALERT_BACKEND_WEBHOOK_URL:-${ALERT_WEBHOOK_URL}}'
         channel: '#openclade-backend'
         send_resolved: true
         icon_emoji: ':wrench:'
         username: 'OpenClade Alertmanager'
-        title: '[Backend] {{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
-        text: |
-          {{ range .Alerts }}
-          *{{ .Annotations.summary }}*
-          {{ .Annotations.description }}
-          *严重度*: {{ .Labels.severity }} | *时间*: {{ .StartsAt.Format "15:04:05" }}
-          {{ end }}
+        mrkdwn_in: ['text', 'pretext', 'fallback']
         color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'
+        pretext: '{{ if eq .Status "resolved" }}:white_check_mark: *[Backend 告警恢复]* {{ else }}:wrench: *[Backend 告警]* {{ end }}'
+        title: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        title_link: '${GRAFANA_URL:-http://localhost:3001}/d/openclaude-overview'
+        fallback: '[Backend] {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        fields:
+          - title: '严重度'
+            value: '{{ (index .Alerts 0).Labels.severity }}'
+            short: true
+          - title: '时间'
+            value: '{{ (index .Alerts 0).StartsAt.Format "15:04:05 UTC" }}'
+            short: true
+        footer: 'OpenClade Backend'
 
   - name: 'slack-ops'
     slack_configs:
-      - api_url: '${SLACK_OPS_WEBHOOK_URL:-${SLACK_WEBHOOK_URL:-http://localhost:9999/webhook}}'
+      - api_url: '${ALERT_OPS_WEBHOOK_URL:-${ALERT_WEBHOOK_URL}}'
         channel: '#openclade-ops'
         send_resolved: true
         icon_emoji: ':bar_chart:'
         username: 'OpenClade Alertmanager'
-        title: '[Ops] {{ .Status | toUpper }}: {{ .GroupLabels.alertname }}'
-        text: |
-          {{ range .Alerts }}
-          *{{ .Annotations.summary }}*
-          {{ .Annotations.description }}
-          *严重度*: {{ .Labels.severity }} | *时间*: {{ .StartsAt.Format "15:04:05" }}
-          {{ end }}
+        mrkdwn_in: ['text', 'pretext', 'fallback']
         color: '{{ if eq .Status "resolved" }}good{{ else if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else }}warning{{ end }}'
+        pretext: '{{ if eq .Status "resolved" }}:white_check_mark: *[Ops 告警恢复]* {{ else }}:bar_chart: *[Ops 告警]* {{ end }}'
+        title: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        title_link: '${GRAFANA_URL:-http://localhost:3001}/d/openclaude-overview'
+        fallback: '[Ops] {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        fields:
+          - title: '严重度'
+            value: '{{ (index .Alerts 0).Labels.severity }}'
+            short: true
+          - title: '时间'
+            value: '{{ (index .Alerts 0).StartsAt.Format "15:04:05 UTC" }}'
+            short: true
+        footer: 'OpenClade Ops'

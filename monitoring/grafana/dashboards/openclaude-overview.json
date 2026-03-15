@@ -5,10 +5,48 @@
   "description": "OpenClaude System Overview — API, Miner Health, Token Consumption",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+  },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": "Prometheus",
+        "definition": "label_values(openclaude_miner_heartbeat_age_seconds, miner_id)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "miner_id",
+        "options": [],
+        "query": {
+          "query": "label_values(openclaude_miner_heartbeat_age_seconds, miner_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "label": "Miner ID",
+        "type": "query"
+      }
+    ]
+  },
   "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "API Performance",
+      "type": "row"
+    },
     {
       "datasource": "Prometheus",
       "fieldConfig": {
@@ -17,7 +55,7 @@
           "custom": { "axisCenteredZero": false }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "id": 1,
       "title": "API Request Rate (req/s)",
       "type": "timeseries",
@@ -45,7 +83,7 @@
           }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
       "id": 2,
       "title": "API Response Time (p95)",
       "type": "timeseries",
@@ -59,6 +97,13 @@
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" }
       }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "Miner Health",
+      "type": "row"
     },
     {
       "datasource": "Prometheus",
@@ -76,7 +121,7 @@
           "unit": "short"
         }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 10 },
       "id": 3,
       "title": "Active Miners (Pool Size)",
       "type": "stat",
@@ -111,7 +156,7 @@
           "max": 1
         }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 10 },
       "id": 5,
       "title": "Miner Online Rate",
       "type": "stat",
@@ -136,7 +181,7 @@
           "unit": "short"
         }
       },
-      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 10 },
       "id": 4,
       "title": "API Key Usage (req/s by key)",
       "type": "timeseries",
@@ -166,7 +211,7 @@
           }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
       "id": 6,
       "title": "Miner Online Rate Trend",
       "type": "timeseries",
@@ -207,14 +252,14 @@
           }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "id": 7,
       "title": "Miner Heartbeat Age (seconds since last heartbeat)",
       "type": "timeseries",
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "openclaude_miner_heartbeat_age_seconds",
+          "expr": "openclaude_miner_heartbeat_age_seconds{miner_id=~\"$miner_id\"}",
           "legendFormat": "Miner {{miner_id}} ({{hotkey}})"
         }
       ],
@@ -226,12 +271,62 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 360 }
+            ]
+          },
+          "custom": {
+            "displayMode": "color-background"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 22 },
+      "id": 10,
+      "title": "Miner Status Table (heartbeat age by miner)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "openclaude_miner_heartbeat_age_seconds{miner_id=~\"$miner_id\"}",
+          "instant": true,
+          "legendFormat": "{{miner_id}}",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "sortBy": [{ "displayName": "Value", "desc": false }],
+        "footer": { "show": false }
+      },
+      "transformations": [
+        { "id": "organize", "options": {
+          "renameByName": { "Value": "Heartbeat Age (s)" }
+        }}
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "id": 102,
+      "title": "Token Consumption",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
           "color": { "mode": "palette-classic" },
           "unit": "short",
           "custom": { "axisCenteredZero": false }
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
       "id": 8,
       "title": "Token Consumption Rate (tokens/s)",
       "type": "timeseries",
@@ -254,7 +349,7 @@
           "unit": "short"
         }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
       "id": 9,
       "title": "Token Consumption Total (cumulative by model)",
       "type": "timeseries",
@@ -274,5 +369,5 @@
   "tags": ["openclaude", "monitoring"],
   "title": "OpenClaude Overview",
   "uid": "openclaude-overview",
-  "version": 2
+  "version": 3
 }

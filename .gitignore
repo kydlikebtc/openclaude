@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.DS_Store
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+*.key
+miner.yaml

@@ -1,0 +1,29 @@
+# OpenClade Miner Configuration
+# Copy to miner.yaml and fill in your values.
+# NEVER commit miner.yaml to git.
+
+# Bittensor wallet settings
+wallet_name: "default"
+wallet_hotkey: "miner-hotkey"
+netuid: 1  # Replace with the actual OpenClade subnet UID
+
+# Network: "test" for testnet, "finney" for mainnet
+subtensor_network: "test"
+# subtensor_chain_endpoint: "ws://127.0.0.1:9944"  # Optional: local subtensor
+
+axon_port: 8091
+# axon_ip: "1.2.3.4"  # Optional: override auto-detected public IP
+
+# Claude API keys (can also set OPENCLAUDE_API_KEYS env var as comma-separated)
+api_keys:
+  - "sk-ant-api03-REPLACE_WITH_YOUR_KEY"
+
+# Models you are willing to serve
+supported_models:
+  - "claude-haiku-4-5-20251001"
+  - "claude-sonnet-4-6"
+
+# Safety limits
+max_concurrent_requests: 10
+request_timeout_sec: 60
+min_stake_tao: 5.0  # Reject queries from validators with less than this stake

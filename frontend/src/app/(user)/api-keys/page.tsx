@@ -105,12 +105,12 @@ export default function ApiKeysPage() {
           <p className="text-slate-500 mt-1">Manage your API keys for accessing OpenClade</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger asChild>
+          <DialogTrigger render={
             <Button className="bg-orange-500 hover:bg-orange-600">
               <Plus size={16} className="mr-2" />
               Create Key
             </Button>
-          </DialogTrigger>
+          } />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{createdKey ? 'Key Created' : 'Create API Key'}</DialogTitle>
@@ -237,11 +237,11 @@ export default function ApiKeysPage() {
                     <TableCell>
                       {key.is_active && (
                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
+                          <AlertDialogTrigger render={
                             <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-700">
                               <Trash2 size={16} />
                             </Button>
-                          </AlertDialogTrigger>
+                          } />
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Revoke API Key</AlertDialogTitle>

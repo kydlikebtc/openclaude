@@ -103,7 +103,7 @@ export default function DashboardPage() {
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip
-                formatter={(v: number) => [v.toLocaleString(), 'Tokens']}
+                formatter={(v) => [Number(v).toLocaleString(), 'Tokens']}
               />
               <Area
                 type="monotone"

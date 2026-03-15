@@ -94,8 +94,8 @@ export default function UsagePage() {
               <XAxis dataKey="model" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v: number, name: string) =>
-                  name === 'tokens' ? [v.toLocaleString(), 'Tokens'] : [`$${v.toFixed(4)}`, 'Cost']
+                formatter={(v, name) =>
+                  name === 'tokens' ? [Number(v).toLocaleString(), 'Tokens'] : [`$${Number(v).toFixed(4)}`, 'Cost']
                 }
               />
               <Legend />

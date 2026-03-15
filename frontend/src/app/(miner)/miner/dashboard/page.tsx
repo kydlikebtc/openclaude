@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { minersApi, MinerResponse } from '@/lib/api'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -100,7 +99,7 @@ export default function MinerDashboardPage() {
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="day" tick={{ fontSize: 12 }} />
               <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(v: number) => [v.toFixed(3), 'Score']} />
+              <Tooltip formatter={(v) => [Number(v).toFixed(3), 'Score']} />
               <Line
                 type="monotone"
                 dataKey="score"

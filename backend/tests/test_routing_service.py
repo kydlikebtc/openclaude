@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.core.security import encrypt_for_redis
 from app.services.routing_service import (
     NoAvailableMinerError,
     select_miner,
@@ -21,14 +22,14 @@ class TestSelectMiner:
             await mock_redis.sadd("miner:model:claude-3-5-sonnet-20241022", "miner-1", "miner-2")
             # Add to pool with scores
             await mock_redis.zadd("miner:pool", {"miner-1": 0.8, "miner-2": 0.5})
-            # Store miner info
+            # Store miner info — API keys must be AES-256-GCM encrypted
             await mock_redis.hset(
                 "miner:miner-1:info",
-                mapping={"id": "miner-1", "api_key": "sk-ant-test-1", "avg_latency_ms": 200},
+                mapping={"id": "miner-1", "api_key": encrypt_for_redis("sk-ant-test-1"), "avg_latency_ms": 200},
             )
             await mock_redis.hset(
                 "miner:miner-2:info",
-                mapping={"id": "miner-2", "api_key": "sk-ant-test-2", "avg_latency_ms": 400},
+                mapping={"id": "miner-2", "api_key": encrypt_for_redis("sk-ant-test-2"), "avg_latency_ms": 400},
             )
 
         asyncio.get_event_loop().run_until_complete(setup())
@@ -72,7 +73,7 @@ class TestSelectMiner:
         await mock_redis.zadd("miner:pool", {"miner-fallback": 0.7})
         await mock_redis.hset(
             "miner:miner-fallback:info",
-            mapping={"id": "miner-fallback", "api_key": "sk-ant-fallback", "avg_latency_ms": 100},
+            mapping={"id": "miner-fallback", "api_key": encrypt_for_redis("sk-ant-fallback"), "avg_latency_ms": 100},
         )
 
         candidate = await select_miner(mock_redis, "unknown-model-xyz")

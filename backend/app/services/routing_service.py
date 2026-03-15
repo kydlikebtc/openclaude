@@ -82,10 +82,19 @@ async def select_miner(redis: Redis, model: str) -> MinerCandidate:
             logger.warning("miner missing api_key in redis", miner_id=miner_id)
             continue
 
+        # Decrypt the API key — stored encrypted in Redis
+        from app.core.security import decrypt_from_redis
+
+        try:
+            api_key_plain = decrypt_from_redis(info["api_key"])
+        except Exception:
+            logger.warning("failed to decrypt miner api_key, skipping miner", miner_id=miner_id)
+            continue
+
         candidates.append(
             MinerCandidate(
                 miner_id=miner_id,
-                api_key=info["api_key"],
+                api_key=api_key_plain,
                 score=float(score),
                 avg_latency_ms=int(info.get("avg_latency_ms", 0)),
             )
@@ -215,10 +224,19 @@ async def _select_excluding(
         if not info or not info.get("api_key"):
             continue
 
+        # Decrypt the API key — stored encrypted in Redis
+        from app.core.security import decrypt_from_redis
+
+        try:
+            api_key_plain = decrypt_from_redis(info["api_key"])
+        except Exception:
+            logger.warning("failed to decrypt miner api_key, skipping miner", miner_id=miner_id)
+            continue
+
         candidates.append(
             MinerCandidate(
                 miner_id=miner_id,
-                api_key=info["api_key"],
+                api_key=api_key_plain,
                 score=float(score),
                 avg_latency_ms=int(info.get("avg_latency_ms", 0)),
             )

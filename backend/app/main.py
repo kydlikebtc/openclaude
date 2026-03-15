@@ -26,11 +26,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # pragma: no co
 
 
 def create_app() -> FastAPI:
+    # Disable interactive API docs in production to reduce attack surface
+    docs_url = "/docs" if settings.debug else None
+    redoc_url = "/redoc" if settings.debug else None
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=docs_url,
+        redoc_url=redoc_url,
         lifespan=lifespan,
     )
 

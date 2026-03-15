@@ -85,10 +85,15 @@ async def _sync_miner_to_redis(
     supported_models: list[str],
     api_key_plain: str,
 ) -> None:
-    """Push miner state into Redis pool structures."""
+    """Push miner state into Redis pool structures.
+
+    API keys are stored AES-256-GCM encrypted, not as plaintext.
+    """
+    from app.core.security import encrypt_for_redis
+
     miner_id = str(miner.id)
 
-    # Store miner info hash
+    # Store miner info hash — API key encrypted at rest in Redis
     info_key = MINER_INFO_KEY.format(id=miner_id)
     await redis.hset(
         info_key,
@@ -96,7 +101,7 @@ async def _sync_miner_to_redis(
             "id": miner_id,
             "hotkey": miner.hotkey,
             "name": miner.name,
-            "api_key": api_key_plain,
+            "api_key": encrypt_for_redis(api_key_plain),
             "consecutive_failures": 0,
             "avg_latency_ms": 0,
         },

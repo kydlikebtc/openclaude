@@ -294,29 +294,34 @@ async def update_key(
 # ── Heartbeat ─────────────────────────────────────────────────────────────────
 
 @router.post("/heartbeat")
-async def heartbeat(payload: MinerHeartbeatRequest, request: Request, db: DbDep) -> dict:
-    """Record a miner heartbeat to signal it is online."""
+async def heartbeat(
+    payload: MinerHeartbeatRequest,
+    current_miner: CurrentMiner,
+    request: Request,
+    db: DbDep,
+) -> dict:
+    """Record an authenticated miner heartbeat to signal it is online.
+
+    Requires a valid miner JWT — prevents unauthorized latency/model spoofing.
+    """
     redis = getattr(request.app.state, "redis", None)
-    miner_id = await redis.get(f"miner:hotkey:{payload.hotkey}") if redis else None
-    if not miner_id:
-        miner = await get_miner_by_hotkey(db, payload.hotkey)
-        if not miner:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Miner not found. Please register first.",
-            )
-        miner_id = str(miner.id)
-        if redis is not None:
-            await redis.set(f"miner:hotkey:{payload.hotkey}", miner_id)
+
+    # Verify the JWT matches the hotkey in the payload to prevent cross-miner spoofing
+    if current_miner.hotkey != payload.hotkey:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hotkey mismatch: JWT subject does not match payload hotkey.",
+        )
 
     if redis is not None:
         await record_heartbeat_by_id(
             redis=redis,
-            miner_id=str(miner_id),
+            miner_id=str(current_miner.id),
             avg_latency_ms=payload.avg_latency_ms,
             supported_models=payload.supported_models,
         )
-    return {"status": "ok", "miner_id": str(miner_id)}
+    logger.info("heartbeat received", miner_id=str(current_miner.id), hotkey=payload.hotkey)
+    return {"status": "ok", "miner_id": str(current_miner.id)}
 
 
 # ── Scoring ───────────────────────────────────────────────────────────────────

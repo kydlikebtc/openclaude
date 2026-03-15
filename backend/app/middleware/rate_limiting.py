@@ -20,26 +20,54 @@ RATE_LIMIT_WINDOW_SEC = 60  # 1 minute sliding window
 GLOBAL_RPM_LIMIT = 10_000  # global safety cap
 GLOBAL_RATE_KEY = "rate:global"
 
+# Auth endpoint brute-force protection
+AUTH_RATE_LIMIT_WINDOW_SEC = 300  # 5 minute window for auth endpoints
+AUTH_RPM_LIMIT = 20  # max 20 login attempts per 5 minutes per IP
+AUTH_PATHS = ("/api/v1/auth/login", "/api/v1/auth/register")
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Sliding window rate limiter using Redis sorted sets.
 
     - Per API-key limit based on the key's configured rate_limit
     - Global limit as safety cap
-    - Proxy paths only (skips health/auth/docs)
+    - Auth endpoint brute-force protection (per IP)
+    - Proxy paths only (skips health/docs)
     """
 
-    BYPASS_PREFIXES = ("/health", "/docs", "/redoc", "/openapi", "/api/v1/auth")
+    BYPASS_PREFIXES = ("/health", "/docs", "/redoc", "/openapi")
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        # Only rate-limit proxy and API paths
         path = request.url.path
+
+        # Skip health/docs entirely
         if any(path.startswith(prefix) for prefix in self.BYPASS_PREFIXES):
             return await call_next(request)
 
         redis: Redis | None = getattr(request.app.state, "redis", None)
         if redis is None:
             logger.warning("redis not available, skipping rate limit")
+            return await call_next(request)
+
+        # Auth endpoint brute-force protection (per IP, tighter window)
+        if any(path.startswith(auth_path) for auth_path in AUTH_PATHS):
+            client_ip = request.client.host if request.client else "unknown"
+            auth_rate_key = f"rate:auth:{client_ip}"
+            if not await self._check_limit_with_window(
+                redis, auth_rate_key, AUTH_RPM_LIMIT, AUTH_RATE_LIMIT_WINDOW_SEC
+            ):
+                logger.warning("auth brute-force rate limit exceeded", client_ip=client_ip, path=path)
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "type": "error",
+                        "error": {
+                            "type": "rate_limit_error",
+                            "message": "Too many authentication attempts. Please wait before trying again.",
+                        },
+                    },
+                    headers={"Retry-After": str(AUTH_RATE_LIMIT_WINDOW_SEC)},
+                )
             return await call_next(request)
 
         # Check global limit first
@@ -82,9 +110,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     async def _check_limit(self, redis: Redis, key: str, limit: int) -> bool:
-        """Sliding window check: True if request is allowed."""
+        """Sliding window check using default 60s window: True if request is allowed."""
+        return await self._check_limit_with_window(redis, key, limit, RATE_LIMIT_WINDOW_SEC)
+
+    async def _check_limit_with_window(
+        self, redis: Redis, key: str, limit: int, window_sec: int
+    ) -> bool:
+        """Sliding window check with configurable window: True if request is allowed."""
         now = time.time()
-        window_start = now - RATE_LIMIT_WINDOW_SEC
+        window_start = now - window_sec
 
         pipe = redis.pipeline()
         # Remove expired entries
@@ -94,7 +128,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Add this request
         pipe.zadd(key, {str(now): now})
         # Set TTL to avoid key accumulation
-        pipe.expire(key, RATE_LIMIT_WINDOW_SEC * 2)
+        pipe.expire(key, window_sec * 2)
         results = await pipe.execute()
 
         current_count = results[1]  # count before adding current request

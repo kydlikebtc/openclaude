@@ -194,9 +194,10 @@ class TestMinerScoring:
     async def test_miner_heartbeat_records_latency(
         self, client: AsyncClient
     ) -> None:
-        """矿工心跳应更新延迟信息。"""
+        """矿工心跳应更新延迟信息（需要 JWT 认证）。"""
         hotkey = f"5miner_{uuid.uuid4().hex[:16]}"
         await _register_miner_api(client, hotkey)
+        token = await _get_miner_token(client, hotkey)
 
         hb_resp = await client.post(
             "/api/v1/miners/heartbeat",
@@ -205,6 +206,7 @@ class TestMinerScoring:
                 "avg_latency_ms": 250,
                 "supported_models": ["claude-haiku-4-5-20251001"],
             },
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert hb_resp.status_code == 200
         assert hb_resp.json()["status"] == "ok"
@@ -237,8 +239,9 @@ class TestMinerScoring:
         """低延迟矿工评分应高于默认值。"""
         hotkey = f"5miner_{uuid.uuid4().hex[:16]}"
         await _register_miner_api(client, hotkey)
+        token = await _get_miner_token(client, hotkey)
 
-        # 模拟低延迟心跳
+        # 模拟低延迟心跳（需要认证）
         await client.post(
             "/api/v1/miners/heartbeat",
             json={
@@ -246,9 +249,8 @@ class TestMinerScoring:
                 "avg_latency_ms": 150,  # 低于最优阈值 200ms
                 "supported_models": ["claude-haiku-4-5-20251001"],
             },
+            headers={"Authorization": f"Bearer {token}"},
         )
-
-        token = await _get_miner_token(client, hotkey)
         score_resp = await client.get(
             "/api/v1/miners/score",
             headers={"Authorization": f"Bearer {token}"},

@@ -1,4 +1,10 @@
+import structlog
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger(__name__)
+
+_INSECURE_SECRET_KEY = "changeme-in-production-use-openssl-rand-hex-32"
+_INSECURE_ENCRYPTION_KEY = "changeme-use-openssl-rand-hex-32-for-redis"
 
 
 class Settings(BaseSettings):
@@ -16,9 +22,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # JWT
-    secret_key: str = "changeme-in-production-use-openssl-rand-hex-32"
+    secret_key: str = _INSECURE_SECRET_KEY
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 hours
+
+    # Redis API key encryption (AES-256-GCM) — must be a 32-byte hex string (64 hex chars)
+    # Generate with: openssl rand -hex 32
+    redis_encryption_key: str = _INSECURE_ENCRYPTION_KEY
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
@@ -39,3 +49,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Warn loudly if insecure defaults are in use (allow in debug/test mode)
+if not settings.debug:
+    if settings.secret_key == _INSECURE_SECRET_KEY:
+        logger.warning(
+            "SECURITY WARNING: Using default JWT secret_key — set SECRET_KEY env var in production"
+        )
+    if settings.redis_encryption_key == _INSECURE_ENCRYPTION_KEY:
+        logger.warning(
+            "SECURITY WARNING: Using default redis_encryption_key — "
+            "set REDIS_ENCRYPTION_KEY env var in production"
+        )

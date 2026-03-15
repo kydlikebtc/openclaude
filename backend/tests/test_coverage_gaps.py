@@ -483,22 +483,26 @@ class TestMinersApiGaps:
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_heartbeat_miner_in_db_not_in_redis(
+    async def test_heartbeat_authenticated_miner(
         self, client: AsyncClient, db: AsyncSession
     ) -> None:
-        """矿工在 DB 中但不在 redis 时，心跳应自动写入 redis（覆盖 miners.py lines 308-310）。"""
-        hotkey = f"5db_only_{uuid.uuid4().hex[:10]}"
-        # 直接写入 DB（不经过 register endpoint，故 redis 中无此 hotkey）
+        """认证矿工发送心跳应返回 200（heartbeat 现在需要 JWT 认证）。"""
+        from app.core.security import create_access_token
+        from app.models.miner import Miner
+
+        hotkey = f"5hb_auth_{uuid.uuid4().hex[:10]}"
         miner = Miner(
             hotkey=hotkey,
-            coldkey="5cold_db_only",
-            name="DB Only Miner",
+            coldkey="5cold_hb_auth",
+            name="Auth HB Miner",
             status="active",
-            referral_code=f"DB{uuid.uuid4().hex[:4].upper()}",
+            referral_code=f"HB{uuid.uuid4().hex[:4].upper()}",
         )
         db.add(miner)
         await db.flush()
+        await db.refresh(miner)
 
+        miner_token = create_access_token(f"miner:{miner.id}")
         resp = await client.post(
             "/api/v1/miners/heartbeat",
             json={
@@ -506,9 +510,27 @@ class TestMinersApiGaps:
                 "avg_latency_ms": 200,
                 "supported_models": ["claude-haiku-4-5-20251001"],
             },
+            headers={"Authorization": f"Bearer {miner_token}"},
         )
         assert resp.status_code == 200
         assert "miner_id" in resp.json()
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_wrong_hotkey_rejected(
+        self, client: AsyncClient, registered_miner_and_token: tuple
+    ) -> None:
+        """JWT 的 hotkey 与 payload hotkey 不匹配时应返回 403。"""
+        _, miner_token = registered_miner_and_token
+        resp = await client.post(
+            "/api/v1/miners/heartbeat",
+            json={
+                "hotkey": "5WRONG_HOTKEY_not_mine",
+                "avg_latency_ms": 100,
+                "supported_models": ["claude-haiku-4-5-20251001"],
+            },
+            headers={"Authorization": f"Bearer {miner_token}"},
+        )
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_get_score_redis_unavailable(

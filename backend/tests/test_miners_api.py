@@ -54,8 +54,8 @@ async def test_register_miner_duplicate_re_registers(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_unknown_miner(client: AsyncClient):
-    """Heartbeat from unregistered miner returns 404."""
+async def test_heartbeat_unauthenticated_returns_401(client: AsyncClient):
+    """Heartbeat without JWT returns 401 (auth required)."""
     resp = await client.post(
         "/api/v1/miners/heartbeat",
         json={
@@ -64,17 +64,18 @@ async def test_heartbeat_unknown_miner(client: AsyncClient):
             "supported_models": [],
         },
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_heartbeat_known_miner(client: AsyncClient):
-    """Heartbeat from registered miner returns 200 with miner_id."""
+    """Heartbeat from authenticated registered miner returns 200 with miner_id."""
+    hotkey = "heartbeat-hotkey-test"
     # Register first
     await client.post(
         "/api/v1/miners/register",
         json={
-            "hotkey": "heartbeat-hotkey-test",
+            "hotkey": hotkey,
             "coldkey": "some-coldkey",
             "name": "Heartbeat Miner",
             "api_key": "sk-ant-hb-key",
@@ -82,14 +83,24 @@ async def test_heartbeat_known_miner(client: AsyncClient):
         },
     )
 
-    # Send heartbeat
+    # Get JWT
+    challenge = await client.get("/api/v1/miners/auth/challenge")
+    nonce = challenge.json()["nonce"]
+    token_resp = await client.post(
+        "/api/v1/miners/auth/token",
+        json={"hotkey": hotkey, "nonce": nonce, "signature": "sig-placeholder"},
+    )
+    miner_token = token_resp.json()["access_token"]
+
+    # Send authenticated heartbeat
     resp = await client.post(
         "/api/v1/miners/heartbeat",
         json={
-            "hotkey": "heartbeat-hotkey-test",
+            "hotkey": hotkey,
             "avg_latency_ms": 250,
             "supported_models": ["claude-3-5-sonnet-20241022"],
         },
+        headers={"Authorization": f"Bearer {miner_token}"},
     )
     assert resp.status_code == 200
     data = resp.json()

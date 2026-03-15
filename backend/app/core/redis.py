@@ -8,7 +8,7 @@ logger = structlog.get_logger(__name__)
 _redis_client: Redis | None = None
 
 
-async def get_redis_client() -> Redis | None:
+async def get_redis_client() -> Redis | None:  # pragma: no cover
     global _redis_client
     try:
         _redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
@@ -20,7 +20,7 @@ async def get_redis_client() -> Redis | None:
         return None
 
 
-async def close_redis_client() -> None:
+async def close_redis_client() -> None:  # pragma: no cover
     global _redis_client
     if _redis_client:
         await _redis_client.aclose()

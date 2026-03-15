@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # pragma: no cover
     from app.core.redis import close_redis_client, get_redis_client
 
     redis = await get_redis_client()

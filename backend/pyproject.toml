@@ -60,6 +60,7 @@ addopts = "--cov=app --cov-report=term-missing --cov-fail-under=80"
 
 [tool.coverage.run]
 source = ["app"]
+concurrency = ["greenlet", "thread"]
 omit = [
     "tests/*",
     # Phase 2+ features: not in Phase 1 scope, covered in subsequent sprints

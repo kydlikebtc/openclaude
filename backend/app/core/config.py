@@ -40,8 +40,12 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # Set True in production (requires HTTPS)
     cookie_samesite: str = "lax"  # "strict" in production; "lax" for local dev CORS
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    # CORS — empty by default for production safety.
+    # Set via CORS_ORIGINS env var (comma-separated or JSON list):
+    #   CORS_ORIGINS='["https://app.openclaude.io","https://dashboard.openclaude.io"]'
+    # For local development, set in .env:
+    #   CORS_ORIGINS='["http://localhost:3000"]'
+    cors_origins: list[str] = []
 
     # Pricing (% of official Anthropic price)
     price_ratio: float = 0.25

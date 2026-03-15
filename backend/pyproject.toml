@@ -27,6 +27,7 @@ dependencies = [
     "redis>=5.0.0",
     "httpx>=0.27.0",
     "prometheus-fastapi-instrumentator>=6.1.0",
+    "py-sr25519-bindings>=0.2.0",
 ]
 
 [project.optional-dependencies]

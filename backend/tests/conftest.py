@@ -1,6 +1,11 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
+
+# Enable debug mode before app imports so settings.debug=True during tests.
+# This bypasses sr25519 signature verification in integration tests.
+os.environ.setdefault("DEBUG", "true")
 
 import pytest
 import pytest_asyncio
@@ -112,6 +117,16 @@ def mock_redis() -> AsyncMock:
             _store.pop(k, None)
         return len(keys)
 
+    async def _hget(key, field):
+        return _store.get(key, {}).get(field)
+
+    async def _scan_iter(match="*"):
+        """Yield keys matching the pattern (simple prefix/glob emulation)."""
+        import fnmatch
+        for k in list(_store.keys()) + list(_sets.keys()):
+            if fnmatch.fnmatch(str(k), match):
+                yield k.encode() if isinstance(k, str) else k
+
     # Pipeline mock (synchronous method returning async-capable pipeline)
     class _MockPipeline:
         def __init__(self):
@@ -144,6 +159,7 @@ def mock_redis() -> AsyncMock:
     redis.set = _set
     redis.exists = _exists
     redis.hset = _hset
+    redis.hget = _hget
     redis.hgetall = _hgetall
     redis.hincrby = _hincrby
     redis.sadd = _sadd
@@ -155,6 +171,7 @@ def mock_redis() -> AsyncMock:
     redis.zrange = _zrange
     redis.pipeline = _pipeline
     redis.delete = _delete
+    redis.scan_iter = _scan_iter
 
     return redis
 

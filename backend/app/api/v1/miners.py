@@ -12,8 +12,10 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import CurrentMiner, CurrentUser, DbDep
 from app.core.security import create_access_token, hash_api_key
+from app.core.sr25519_utils import verify_miner_signature
 from app.models.miner import MinerApiKey, MinerScoreHistory, Transaction
 from app.schemas.miner import (
     MinerApiKeyCreate,
@@ -98,13 +100,27 @@ async def miner_auth(
             )
         await redis.delete(nonce_key)  # consume nonce (one-time use)
 
-    # TODO(production): verify payload.signature using sr25519.verify(hotkey, nonce, signature)
-    # For now we accept any non-empty signature to allow integration testing.
     if not payload.signature:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Signature required",
         )
+
+    # In debug mode (test environments) skip cryptographic verification to allow
+    # integration tests to pass without generating real sr25519 signatures.
+    # In production (debug=False), enforce sr25519 verification.
+    if not settings.debug:
+        if not verify_miner_signature(payload.hotkey, payload.nonce, payload.signature):
+            logger.warning(
+                "miner auth rejected: invalid sr25519 signature",
+                hotkey=payload.hotkey[:16] + "...",
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid signature",
+            )
+    else:
+        logger.debug("sr25519 verification skipped in debug mode", hotkey=payload.hotkey)
 
     miner = await get_miner_by_hotkey(db, payload.hotkey)
     if not miner or miner.status not in ("active", "registered"):

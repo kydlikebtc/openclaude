@@ -262,8 +262,18 @@ async def get_pool_status(redis: Redis | None) -> dict:
     # Count online by heartbeat (approximate — only pool members)
     online = total_in_pool  # Simplified; in production check heartbeat TTL
 
+    # Build per-model miner count by scanning miner:model:* keys
+    miners_by_model: dict[str, int] = {}
+    model_key_prefix = "miner:model:"
+    async for key in redis.scan_iter(match=f"{model_key_prefix}*"):
+        key_str = key.decode() if isinstance(key, bytes) else key
+        model_name = key_str[len(model_key_prefix):]
+        members = await redis.smembers(key)
+        miners_by_model[model_name] = len(members)
+        logger.debug("model pool count", model=model_name, count=len(members))
+
     return {
         "total_miners": int(total_in_pool),
         "online_miners": int(online),
-        "miners_by_model": {},  # TODO: iterate model keys
+        "miners_by_model": miners_by_model,
     }

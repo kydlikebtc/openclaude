@@ -6,9 +6,10 @@ import uuid
 
 import structlog
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.metrics import heartbeat_collector, miner_pool_size, miner_total_registered
 from app.models.miner import Miner, MinerApiKey
 
 logger = structlog.get_logger(__name__)
@@ -76,6 +77,14 @@ async def register_miner(
     # Sync to Redis pool
     await _sync_miner_to_redis(redis, miner, supported_models, api_key_plain)
 
+    # Update total registered count from DB
+    count_result = await db.execute(
+        select(func.count(Miner.id)).where(Miner.status == "active")
+    )
+    total = count_result.scalar_one() or 0
+    miner_total_registered.set(total)
+    logger.debug("miner_total_registered updated", total=total)
+
     return miner
 
 
@@ -115,7 +124,15 @@ async def _sync_miner_to_redis(
         model_key = MINER_MODEL_KEY.format(model=model)
         await redis.sadd(model_key, miner_id)
 
-    logger.info("miner synced to redis", miner_id=miner_id, models=supported_models)
+    # Update pool size metric
+    pool_size = await redis.zcard(MINER_POOL_KEY)
+    miner_pool_size.set(int(pool_size))
+    logger.info(
+        "miner synced to redis",
+        miner_id=miner_id,
+        models=supported_models,
+        pool_size=pool_size,
+    )
 
 
 async def record_heartbeat(redis: Redis, hotkey: str, avg_latency_ms: int) -> bool:
@@ -136,6 +153,9 @@ async def record_heartbeat(redis: Redis, hotkey: str, avg_latency_ms: int) -> bo
     # Update latency in miner info
     info_key = MINER_INFO_KEY.format(id=miner_id)
     await redis.hset(info_key, "avg_latency_ms", avg_latency_ms)
+
+    # Record heartbeat timestamp for age metric
+    heartbeat_collector.record(str(miner_id), hotkey)
 
     logger.info("heartbeat recorded", miner_id=miner_id, avg_latency_ms=avg_latency_ms)
     return True
@@ -158,6 +178,11 @@ async def record_heartbeat_by_id(
         model_key = MINER_MODEL_KEY.format(model=model)
         await redis.sadd(model_key, miner_id)
 
+    # Fetch hotkey from info hash for heartbeat age metric label
+    hotkey_raw = await redis.hget(info_key, "hotkey")
+    hotkey = hotkey_raw.decode() if isinstance(hotkey_raw, bytes) else (hotkey_raw or "unknown")
+    heartbeat_collector.record(miner_id, hotkey)
+
     logger.info("heartbeat recorded", miner_id=miner_id, avg_latency_ms=avg_latency_ms)
 
 
@@ -171,7 +196,15 @@ async def mark_miner_failure(redis: Redis, miner_id: str) -> int:
         await redis.set(isolation_key, "1", ex=ISOLATION_TTL)
         # Remove from active pool
         await redis.zrem(MINER_POOL_KEY, miner_id)
-        logger.warning("miner isolated due to failures", miner_id=miner_id, failures=failures)
+        # Update pool size metric after removal
+        pool_size = await redis.zcard(MINER_POOL_KEY)
+        miner_pool_size.set(int(pool_size))
+        logger.warning(
+            "miner isolated due to failures",
+            miner_id=miner_id,
+            failures=failures,
+            pool_size=pool_size,
+        )
     else:
         logger.info("miner failure recorded", miner_id=miner_id, failures=failures)
 
@@ -191,7 +224,15 @@ async def update_miner_score(redis: Redis, miner_id: str, score: float) -> None:
 
     if not is_isolated:
         await redis.zadd(MINER_POOL_KEY, {miner_id: score})
-        logger.info("miner score updated", miner_id=miner_id, score=score)
+        # Update pool size metric
+        pool_size = await redis.zcard(MINER_POOL_KEY)
+        miner_pool_size.set(int(pool_size))
+        logger.info(
+            "miner score updated",
+            miner_id=miner_id,
+            score=score,
+            pool_size=pool_size,
+        )
 
 
 async def get_miner_by_hotkey(db: AsyncSession, hotkey: str) -> Miner | None:

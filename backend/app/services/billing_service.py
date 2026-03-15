@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.metrics import tokens_consumed
 from app.models.miner import Transaction
 from app.models.user import User
 
@@ -48,6 +49,7 @@ async def check_and_deduct_balance(
     tokens_in: int,
     tokens_out: int,
     miner_id: uuid.UUID | None = None,
+    user_tier: str = "standard",
 ) -> Decimal:
     """Deduct usage cost from user balance. Returns cost deducted.
 
@@ -91,6 +93,16 @@ async def check_and_deduct_balance(
     )
     db.add(tx)
     await db.flush()
+
+    # Update token consumption metric
+    total_tokens = tokens_in + tokens_out
+    tokens_consumed.labels(model=model, user_tier=user_tier).inc(total_tokens)
+    logger.debug(
+        "tokens_consumed metric updated",
+        model=model,
+        user_tier=user_tier,
+        total_tokens=total_tokens,
+    )
 
     return cost
 

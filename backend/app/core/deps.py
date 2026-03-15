@@ -80,5 +80,16 @@ async def get_current_miner(
     return miner
 
 
+async def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    """Require authenticated user to be an admin."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return current_user
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentMiner = Annotated[Miner, Depends(get_current_miner)]
+AdminUser = Annotated[User, Depends(get_admin_user)]

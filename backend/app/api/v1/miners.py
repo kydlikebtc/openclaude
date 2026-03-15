@@ -3,15 +3,18 @@
 import secrets
 import time
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query, Request, status
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import CurrentMiner, CurrentUser, DbDep
 from app.core.security import create_access_token, hash_api_key
-from app.models.miner import MinerApiKey, MinerScoreHistory
+from app.models.miner import MinerApiKey, MinerScoreHistory, Transaction
 from app.schemas.miner import (
     MinerApiKeyCreate,
     MinerApiKeyResponse,
@@ -472,3 +475,108 @@ async def list_all_miners(
         )
         for m in miners
     ]
+
+
+# ── Earnings ──────────────────────────────────────────────────────────────────
+
+# Miner receives this fraction of the platform's collected revenue
+_MINER_REVENUE_SHARE = Decimal("0.30")
+
+
+class MinerEarningsRecord(BaseModel):
+    date: str  # ISO YYYY-MM-DD
+    requests: int
+    tokens_in: int
+    tokens_out: int
+    gross_revenue: Decimal  # total cost billed to users that day
+    earnings: Decimal       # miner's share = gross_revenue * revenue_share
+
+
+class MinerEarningsResponse(BaseModel):
+    miner_id: uuid.UUID
+    hotkey: str
+    stake_amount: Decimal
+    revenue_share_pct: float
+    total_gross_revenue: Decimal
+    total_earnings: Decimal
+    daily: list[MinerEarningsRecord]
+    start: str
+    end: str
+
+
+@router.get("/{miner_id}/earnings", response_model=MinerEarningsResponse)
+async def get_miner_earnings(
+    miner_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbDep,
+    days: int = Query(default=30, ge=1, le=365),
+) -> MinerEarningsResponse:
+    """Get stake and earnings history for a miner.
+
+    Accessible to any authenticated user (e.g. miner dashboard, admin portal).
+    Returns per-day revenue and miner earnings share over the requested window.
+    """
+    miner = await get_miner_by_id(db, miner_id)
+    if not miner:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Miner not found")
+
+    now = datetime.now(UTC)
+    since = now - timedelta(days=days)
+    start_date = since.date()
+    end_date = now.date()
+
+    from sqlalchemy import cast
+    from sqlalchemy import Date as SADate
+
+    day_col = cast(Transaction.created_at, SADate).label("day")
+    result = await db.execute(
+        select(
+            day_col,
+            func.count(Transaction.id).label("requests"),
+            func.sum(Transaction.tokens_in).label("tokens_in"),
+            func.sum(Transaction.tokens_out).label("tokens_out"),
+            func.sum(Transaction.cost).label("gross_revenue"),
+        )
+        .where(
+            Transaction.miner_id == miner_id,
+            Transaction.created_at >= since,
+        )
+        .group_by(day_col)
+        .order_by(day_col)
+    )
+    rows = result.all()
+
+    daily = [
+        MinerEarningsRecord(
+            date=str(row.day),
+            requests=row.requests or 0,
+            tokens_in=row.tokens_in or 0,
+            tokens_out=row.tokens_out or 0,
+            gross_revenue=row.gross_revenue or Decimal("0"),
+            earnings=(row.gross_revenue or Decimal("0")) * _MINER_REVENUE_SHARE,
+        )
+        for row in rows
+    ]
+
+    total_gross = sum((r.gross_revenue for r in daily), Decimal("0"))
+    total_earnings = sum((r.earnings for r in daily), Decimal("0"))
+
+    logger.info(
+        "miner earnings query",
+        miner_id=str(miner_id),
+        days=days,
+        total_earnings=str(total_earnings),
+        requested_by=str(current_user.id),
+    )
+
+    return MinerEarningsResponse(
+        miner_id=miner.id,
+        hotkey=miner.hotkey,
+        stake_amount=miner.stake_amount,
+        revenue_share_pct=float(_MINER_REVENUE_SHARE * 100),
+        total_gross_revenue=total_gross,
+        total_earnings=total_earnings,
+        daily=daily,
+        start=str(start_date),
+        end=str(end_date),
+    )

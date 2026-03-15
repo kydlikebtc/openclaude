@@ -14,7 +14,17 @@ htmlcov/
 
 # Env
 .env
+.env.prod
+.env.local
 !.env.example
+!.env.prod.example
+
+# SSL certificates
+nginx/ssl/
+
+# Node
+node_modules/
+.next/
 
 # macOS
 .DS_Store

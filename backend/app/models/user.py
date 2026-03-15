@@ -21,6 +21,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
     status: Mapped[str] = mapped_column(VARCHAR(20), default="active", nullable=False)
+    is_admin: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")  # noqa: F821
 

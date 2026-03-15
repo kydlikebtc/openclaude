@@ -39,12 +39,12 @@ class OpenCladeValidator:
     Weights flow into Yuma Consensus, which determines Miner emissions.
     """
 
-    def __init__(self, config: bt.config) -> None:
+    def __init__(self, config: bt.Config) -> None:
         self.config = config
-        self.wallet = bt.wallet(config=config)
-        self.subtensor = bt.subtensor(config=config)
-        self.dendrite = bt.dendrite(wallet=self.wallet)
-        self.metagraph = bt.metagraph(
+        self.wallet = bt.Wallet(config=config)
+        self.subtensor = bt.Subtensor(config=config)
+        self.dendrite = bt.Dendrite(wallet=self.wallet)
+        self.metagraph = bt.Metagraph(
             netuid=config.netuid,
             network=config.subtensor.network,
         )
@@ -210,14 +210,14 @@ class OpenCladeValidator:
         return self.probe_generator.probe_interval_sec(n)
 
 
-def build_config() -> bt.config:
+def build_config() -> bt.Config:
     """Build Bittensor config from CLI args."""
     parser = argparse.ArgumentParser(description="OpenClade Validator Node")
-    bt.wallet.add_args(parser)
-    bt.subtensor.add_args(parser)
+    bt.Wallet.add_args(parser)
+    bt.Subtensor.add_args(parser)
     bt.logging.add_args(parser)
     parser.add_argument("--netuid", type=int, default=1, help="Subnet UID")
-    return bt.config(parser)
+    return bt.Config(parser)
 
 
 def main() -> None:

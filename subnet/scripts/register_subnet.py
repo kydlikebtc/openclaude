@@ -65,16 +65,16 @@ def register_subnet(subtensor, wallet) -> int:
     balance = subtensor.get_balance(wallet.coldkeypub.ss58_address)
     logger.info(f"Wallet balance: {balance} TAO")
 
-    # Attempt subnet registration
-    success = subtensor.register_subnetwork(wallet=wallet, wait_for_inclusion=True)
+    # Attempt subnet registration (bittensor v10: register_subnet, not register_subnetwork)
+    success = subtensor.register_subnet(wallet=wallet, wait_for_inclusion=True)
     if not success:
         raise RuntimeError(
             "Subnet registration failed. Ensure wallet has sufficient TAO balance "
             "and the network is reachable."
         )
 
-    # Get the newly allocated netuid (last registered subnet)
-    subnets = subtensor.get_subnets()
+    # Get the newly allocated netuid (bittensor v10: get_all_subnets_netuid, not get_subnets)
+    subnets = subtensor.get_all_subnets_netuid()
     netuid = max(subnets) if subnets else -1
 
     logger.info(f"Subnet registered successfully | netuid={netuid}")
@@ -101,8 +101,9 @@ def register_neuron(subtensor, wallet, netuid: int) -> None:
         logger.info("Hotkey already registered on subnet — skipping")
         return
 
-    logger.info("Starting PoW registration (this may take several minutes)...")
-    success = subtensor.register(
+    logger.info("Starting burned registration (burns TAO from wallet)...")
+    # bittensor v10: burned_register is the standard registration method for testnet/mainnet
+    success = subtensor.burned_register(
         wallet=wallet,
         netuid=netuid,
         wait_for_inclusion=True,
@@ -111,20 +112,23 @@ def register_neuron(subtensor, wallet, netuid: int) -> None:
     if not success:
         raise RuntimeError(
             f"Neuron registration failed on subnet {netuid}. "
-            "Try increasing num_processes in registration config."
+            "Ensure wallet has sufficient TAO for registration burn cost."
         )
 
     logger.info(f"Neuron registered successfully on netuid={netuid}")
 
 
 def verify_subnet_state(subtensor, netuid: int) -> None:
-    """Log current subnet state for verification."""
+    """Log current subnet state for verification (bittensor v10 compatible)."""
     try:
-        metagraph = subtensor.metagraph(netuid=netuid)
-        metagraph.sync()
+        import bittensor as bt
+        # v10: bt.Metagraph(netuid, network) then sync(subtensor=subtensor)
+        metagraph = bt.Metagraph(netuid=netuid, network=subtensor.network)
+        metagraph.sync(subtensor=subtensor)
+        n = metagraph.n.item() if hasattr(metagraph.n, "item") else metagraph.n
         logger.info(
             f"Subnet state | netuid={netuid} | "
-            f"n_neurons={metagraph.n.item()} | "
+            f"n_neurons={n} | "
             f"block={subtensor.get_current_block()}"
         )
     except Exception as e:
@@ -181,11 +185,12 @@ def main() -> None:
         sys.exit(1)
 
     logger.info(f"Connecting to Bittensor {args.network} network...")
-    subtensor = bt.subtensor(network=args.network)
+    # bittensor v10: CamelCase classes - bt.Subtensor, bt.Wallet
+    subtensor = bt.Subtensor(network=args.network)
 
     wallet_name = getattr(args, "wallet.name", "default")
     wallet_hotkey = getattr(args, "wallet.hotkey", "default")
-    wallet = bt.wallet(name=wallet_name, hotkey=wallet_hotkey)
+    wallet = bt.Wallet(name=wallet_name, hotkey=wallet_hotkey)
 
     logger.info(
         f"Using wallet | coldkey={wallet.coldkeypub.ss58_address} | "

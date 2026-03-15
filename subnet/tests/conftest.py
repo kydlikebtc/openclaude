@@ -19,10 +19,10 @@ def _install_bittensor_mock() -> MagicMock:
     """
     Build a minimal bittensor mock that satisfies subnet module imports.
 
-    We need:
+    Supports bittensor v10 CamelCase API:
     - bt.Synapse (base class for LLMAPISynapse)
-    - bt.wallet, bt.axon, bt.dendrite, bt.subtensor, bt.metagraph
-    - bt.config, bt.logging
+    - bt.Wallet, bt.Axon, bt.Dendrite, bt.Subtensor, bt.Metagraph  (v10)
+    - bt.Config, bt.logging                                          (v10)
     """
     bt_mock = MagicMock()
 
@@ -35,12 +35,14 @@ def _install_bittensor_mock() -> MagicMock:
         model_config = {"arbitrary_types_allowed": True}
 
     bt_mock.Synapse = FakeSynapse
-    bt_mock.wallet = MagicMock()
-    bt_mock.axon = MagicMock()
-    bt_mock.dendrite = MagicMock()
-    bt_mock.subtensor = MagicMock()
-    bt_mock.metagraph = MagicMock()
-    bt_mock.config = MagicMock()
+
+    # bittensor v10: CamelCase API — explicitly set to catch any misuse
+    bt_mock.Wallet = MagicMock()
+    bt_mock.Axon = MagicMock()
+    bt_mock.Dendrite = MagicMock()
+    bt_mock.Subtensor = MagicMock()
+    bt_mock.Metagraph = MagicMock()
+    bt_mock.Config = MagicMock()
     bt_mock.logging = MagicMock()
 
     sys.modules["bittensor"] = bt_mock

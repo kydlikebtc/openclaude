@@ -1,0 +1,27 @@
+# OpenClade Validator Configuration — Bittensor Testnet
+# Generated: 2026-03-15
+# NEVER commit actual keys or API keys to git.
+
+# Wallet configuration (created 2026-03-15)
+# wallet.name: openclaude-validator
+# wallet.hotkey: validator
+# Coldkey: 5DcZeL6VwxB3aTEEdCjyH2TG1d1B1w4xUBYKSMh6MMG1Npgk
+# Hotkey:  5F9Sy8xFv31WQ3rmeK37yyc6NGX716mpmdjja2xsB4iqcQCa
+
+# Network
+subtensor.network: test
+# subtensor.chain_endpoint: wss://test.finney.opentensor.ai:443
+
+# Subnet (fill in after registration)
+netuid: FILL_IN_AFTER_SUBNET_REGISTRATION
+
+# Probe settings
+probe_interval_sec: 60
+max_concurrent_probes: 10
+probe_timeout_sec: 30
+
+# Weight submission
+weight_submission_interval_blocks: 100
+min_allowed_weights: 1
+exclude_quantile: 0.1
+max_weight_limit: 1.0

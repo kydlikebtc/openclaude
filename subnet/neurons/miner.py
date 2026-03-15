@@ -41,17 +41,17 @@ class OpenCladeMiner:
 
     def __init__(self, config_path: str) -> None:
         self.config = MinerConfig.load(config_path)
-        self.wallet = bt.wallet(
+        self.wallet = bt.Wallet(
             name=self.config.wallet_name,
             hotkey=self.config.wallet_hotkey,
         )
-        self.subtensor = bt.subtensor(network=self.config.subtensor_network)
-        self.metagraph = bt.metagraph(
+        self.subtensor = bt.Subtensor(network=self.config.subtensor_network)
+        self.metagraph = bt.Metagraph(
             netuid=self.config.netuid,
             network=self.config.subtensor_network,
         )
         self.api_pool = APIKeyPool(self.config.api_keys)
-        self.axon = bt.axon(
+        self.axon = bt.Axon(
             wallet=self.wallet,
             port=self.config.axon_port,
             ip=self.config.axon_ip,
@@ -221,8 +221,8 @@ class OpenCladeMiner:
             netuid=self.config.netuid,
             hotkey_ss58=self.wallet.hotkey.ss58_address,
         ):
-            logger.info("Hotkey not registered. Registering via PoW...")
-            self.subtensor.register(
+            logger.info("Hotkey not registered. Registering (burned_register)...")
+            self.subtensor.burned_register(
                 wallet=self.wallet,
                 netuid=self.config.netuid,
             )

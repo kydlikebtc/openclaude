@@ -73,6 +73,9 @@ export default function Home() {
             <a href="#miners" className="text-sm text-slate-400 hover:text-white transition-colors">
               Mine & Earn
             </a>
+            <Link href="/blog" className="text-sm text-slate-400 hover:text-white transition-colors">
+              Blog
+            </Link>
             <Link href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors">
               Docs
             </Link>
@@ -458,6 +461,7 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-12 gap-y-3 text-sm">
               <Link href="/docs" className="text-slate-400 hover:text-white transition-colors">Documentation</Link>
+              <Link href="/blog" className="text-slate-400 hover:text-white transition-colors">Blog</Link>
               <Link href="/register" className="text-slate-400 hover:text-white transition-colors">Sign Up</Link>
               <Link href="/miner/register" className="text-slate-400 hover:text-white transition-colors">Become a Miner</Link>
               <Link href="https://github.com/kydlikebtc/openclaude" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</Link>
